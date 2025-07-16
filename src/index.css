@@ -2,87 +2,99 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
+    --background: 342 57% 97%;
+    --foreground: 220 20% 20%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
+    --card-foreground: 220 20% 20%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
-    --radius: 0.5rem;
-
+    --popover-foreground: 220 20% 20%;
+    
+    /* Pet-friendly primary colors - warm orange/coral */
+    --primary: 18 88% 65%;
+    --primary-foreground: 0 0% 100%;
+    --primary-soft: 18 88% 88%;
+    --primary-glow: 18 88% 75%;
+    
+    /* Calming secondary colors - soft purple */
+    --secondary: 267 57% 78%;
+    --secondary-foreground: 220 20% 20%;
+    --secondary-soft: 267 57% 92%;
+    
+    /* Accent colors - playful teal */
+    --accent: 176 68% 64%;
+    --accent-foreground: 0 0% 100%;
+    --accent-soft: 176 68% 88%;
+    
+    /* Neutral colors */
+    --muted: 342 20% 95%;
+    --muted-foreground: 220 20% 50%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 342 20% 88%;
+    --input: 342 20% 88%;
+    --ring: 18 88% 65%;
+    
+    /* Success for healthy pets */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --success-soft: 142 76% 88%;
+    
+    /* Warning for reminders */
+    --warning: 43 96% 56%;
+    --warning-foreground: 220 20% 20%;
+    --warning-soft: 43 96% 90%;
+    
+    /* Chart colors */
+    --chart-1: 18 88% 65%;
+    --chart-2: 267 57% 78%;
+    --chart-3: 176 68% 64%;
+    --chart-4: 142 76% 36%;
+    --chart-5: 43 96% 56%;
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-soft: linear-gradient(135deg, hsl(var(--primary-soft)), hsl(var(--secondary-soft)));
+    --gradient-accent: linear-gradient(135deg, hsl(var(--accent)), hsl(var(--secondary)));
+    
+    /* Shadows */
+    --shadow-soft: 0 2px 8px hsla(var(--primary), 0.1);
+    --shadow-medium: 0 4px 16px hsla(var(--primary), 0.15);
+    --shadow-glow: 0 0 24px hsla(var(--primary-glow), 0.3);
+    
+    /* Radius */
+    --radius: 1rem;
+    
+    /* Sidebar colors */
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --background: 220 20% 8%;
+    --foreground: 342 57% 95%;
+    --card: 220 20% 12%;
+    --card-foreground: 342 57% 95%;
+    --popover: 220 20% 12%;
+    --popover-foreground: 342 57% 95%;
+    --primary: 18 88% 70%;
+    --primary-foreground: 220 20% 8%;
+    --secondary: 267 57% 65%;
+    --secondary-foreground: 342 57% 95%;
+    --accent: 176 68% 55%;
+    --accent-foreground: 220 20% 8%;
+    --muted: 220 20% 15%;
+    --muted-foreground: 342 20% 60%;
+    --border: 220 20% 18%;
+    --input: 220 20% 18%;
+    --ring: 18 88% 70%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -98,8 +110,80 @@ All colors MUST be HSL.
   * {
     @apply border-border;
   }
-
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+  }
+  
+  /* Mobile-first responsive text */
+  h1 {
+    @apply text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight;
+  }
+  
+  h2 {
+    @apply text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight;
+  }
+  
+  h3 {
+    @apply text-lg sm:text-xl md:text-2xl font-medium tracking-tight;
+  }
+}
+
+@layer components {
+  /* Pet card styles */
+  .pet-card {
+    @apply bg-card border border-border rounded-2xl p-4 shadow-soft hover:shadow-medium transition-all duration-300;
+  }
+  
+  /* Gradient backgrounds */
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+  
+  .gradient-soft {
+    background: var(--gradient-soft);
+  }
+  
+  .gradient-accent {
+    background: var(--gradient-accent);
+  }
+  
+  /* Button variants */
+  .btn-pet {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-6 py-3 font-medium transition-all duration-200 shadow-soft hover:shadow-medium;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/90 rounded-full px-6 py-3 font-medium transition-all duration-200;
+  }
+  
+  /* Navigation styles */
+  .nav-item {
+    @apply flex flex-col items-center p-2 rounded-lg transition-colors duration-200;
+  }
+  
+  .nav-item.active {
+    @apply bg-primary/10 text-primary;
+  }
+  
+  /* Chat bubble styles */
+  .chat-bubble-user {
+    @apply bg-primary text-primary-foreground rounded-2xl rounded-br-md p-3 ml-8 shadow-soft;
+  }
+  
+  .chat-bubble-ai {
+    @apply bg-muted text-muted-foreground rounded-2xl rounded-bl-md p-3 mr-8 shadow-soft;
+  }
+  
+  /* Status indicators */
+  .status-healthy {
+    @apply bg-success text-success-foreground;
+  }
+  
+  .status-warning {
+    @apply bg-warning text-warning-foreground;
+  }
+  
+  .status-overdue {
+    @apply bg-destructive text-destructive-foreground;
   }
 }
