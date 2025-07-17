@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import Navigation from "@/components/Navigation";
 
+
 // Haversine formula to compute distance in kilometers
 const getDistanceFromLatLon = (lat1, lon1, lat2, lon2) => {
   const toRad = (value) => (value * Math.PI) / 180;
@@ -35,13 +36,29 @@ const VetFinder = () => {
   const [vets, setVets] = useState([]);
   const [userLocation, setUserLocation] = useState(null);
   const [loading, setLoading] = useState(true);
-
+  const [showModal, setShowModal] = useState(false);
+  const [selectedClinic, setSelectedClinic] = useState(null);
   const filters = [
     { id: "all", label: "All" },
-    { id: "ncr", label: "NCR" },
-    { id: "region3", label: "Region III" },
-    { id: "region4a", label: "Region IV-A" },
+    { id: "NCR", label: "NCR" },
+    { id: "CAR", label: "CAR" },
+    { id: "I", label: "Region I" },
+    { id: "II", label: "Region II" },
+    { id: "III", label: "Region III" },
+    { id: "IV-A", label: "Region IV-A" },
+    { id: "IV-B", label: "Region IV-B" },
+    { id: "V", label: "Region V" },
+    { id: "VI", label: "Region VI" },
+    { id: "VII", label: "Region VII" },
+    { id: "VIII", label: "Region VIII" },
+    { id: "IX", label: "Region IX" },
+    { id: "X", label: "Region X" },
+    { id: "XI", label: "Region XI" },
+    { id: "XII", label: "Region XII" },
+    { id: "XIII", label: "Region XIII" },
   ];
+
+
 
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
@@ -84,6 +101,7 @@ const VetFinder = () => {
             address: data.business_address || "Unknown Address",
             region: data.region || "N/A",
             contact: data.contact || "No contact",
+            facebook_page: data.facebook_page || null,
             latitude: lat,
             longitude: lng,
             rating: Math.floor(Math.random() * 2) + 4.0,
@@ -206,19 +224,65 @@ const VetFinder = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    <Phone className="w-4 h-4 mr-2" />
-                    Call
-                  </Button>
-                  <Button size="sm" className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90">
-                    View Details
-                  </Button>
-                </div>
+              <Button
+                onClick={() => {
+                  setSelectedClinic(vet);
+                  setShowModal(true);
+                }}
+                size="sm"
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                <Phone className="w-4 h-4 mr-2" />
+                Contact Clinic
+              </Button>
+
               </CardContent>
             </Card>
           ))}
       </div>
+      {showModal && selectedClinic && (
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+        <div className="bg-white rounded-xl p-6 w-[90%] max-w-md shadow-lg">
+          <h3 className="text-lg font-bold mb-2">{selectedClinic.name}</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            {selectedClinic.address}
+          </p>
+          <div className="space-y-3 text-sm">
+            <div>
+              <span className="font-medium">Phone: </span>
+              {selectedClinic.contact ? (
+                <a href={`tel:${selectedClinic.contact}`} className="text-blue-600 underline">
+                  {selectedClinic.contact}
+                </a>
+              ) : (
+                "Not available"
+              )}
+            </div>
+            <div>
+              <span className="font-medium">Facebook: </span>
+              {selectedClinic.facebook_page ? (
+                <a
+                  href={selectedClinic.facebook_page}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 underline"
+                >
+                  {selectedClinic.facebook_page.replace(/^https?:\/\/(www\.)?facebook\.com\//, "")}
+                </a>
+
+              ) : (
+                "Not available"
+              )}
+            </div>
+          </div>
+          <div className="mt-6 flex justify-end">
+            <Button variant="outline" onClick={() => setShowModal(false)}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </div>
+    )}
 
       <Navigation />
     </div>
