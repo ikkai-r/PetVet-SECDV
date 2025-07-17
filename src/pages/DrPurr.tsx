@@ -1,13 +1,26 @@
-import { useState } from "react";
-import { Send, Bot, User, Heart, AlertCircle, Camera } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Send, Bot, User, Heart, AlertCircle, Camera, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import Navigation from "@/components/Navigation";
+import { GeminiService } from "@/services/gemini";
+import { useAuth } from "@/hooks/useAuth";
+import { getUserPets } from "@/services/firestore";
+import { Pet } from "@/types";
+import { useToast } from "@/hooks/use-toast";
 
 const DrPurr = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [message, setMessage] = useState("");
+  const [geminiApiKey, setGeminiApiKey] = useState(localStorage.getItem('gemini_api_key') || "");
+  const [userPets, setUserPets] = useState<Pet[]>([]);
+  const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState([
     {
       id: "1",
@@ -29,8 +42,35 @@ const DrPurr = () => {
     },
   ]);
 
-  const handleSendMessage = () => {
+  useEffect(() => {
+    if (user) {
+      loadUserPets();
+    }
+  }, [user]);
+
+  const loadUserPets = async () => {
+    try {
+      const pets = await getUserPets(user!.uid);
+      setUserPets(pets);
+      if (pets.length > 0 && !selectedPet) {
+        setSelectedPet(pets[0]);
+      }
+    } catch (error) {
+      console.error('Error loading pets:', error);
+    }
+  };
+
+  const handleSendMessage = async () => {
     if (!message.trim()) return;
+    
+    if (!geminiApiKey) {
+      toast({
+        title: "API Key Required",
+        description: "Please add your Gemini API key in settings to chat with Dr. Purr.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const newMessage = {
       id: Date.now().toString(),
@@ -40,18 +80,53 @@ const DrPurr = () => {
     };
 
     setMessages(prev => [...prev, newMessage]);
+    const currentMessage = message;
     setMessage("");
+    setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      const geminiService = new GeminiService(geminiApiKey);
+      const petContext = selectedPet ? {
+        name: selectedPet.name,
+        age: selectedPet.age,
+        species: selectedPet.species,
+        breed: selectedPet.breed
+      } : undefined;
+
+      const response = await geminiService.sendMessage(
+        currentMessage,
+        messages.filter(m => m.type === 'ai').map(m => ({
+          role: 'model' as const,
+          parts: [{ text: m.content }]
+        })),
+        petContext
+      );
+
       const aiResponse = {
         id: (Date.now() + 1).toString(),
         type: "ai" as const,
-        content: "Thank you for that information. Let me analyze your pet's symptoms and provide some guidance. This is a simulated response - in the real app, this would connect to an AI service through Supabase Edge Functions.",
+        content: response,
         timestamp: new Date(),
       };
+      
       setMessages(prev => [...prev, aiResponse]);
-    }, 1000);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const saveApiKey = () => {
+    localStorage.setItem('gemini_api_key', geminiApiKey);
+    toast({
+      title: "API Key Saved",
+      description: "Your Gemini API key has been saved locally.",
+    });
   };
 
   const quickQuestions = [
@@ -71,14 +146,72 @@ const DrPurr = () => {
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <div className="gradient-accent p-6 rounded-b-3xl">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-            <Bot className="w-6 h-6 text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+              <Bot className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-white font-bold">Dr. Purr</h1>
+              <p className="text-white/90 text-sm">
+                {selectedPet ? `Chatting about ${selectedPet.name}` : 'Your AI Veterinary Assistant'}
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-white font-bold">Dr. Purr</h1>
-            <p className="text-white/90 text-sm">Your AI Veterinary Assistant</p>
-          </div>
+          
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
+                <Settings className="w-5 h-5" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Dr. Purr Settings</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="apiKey">Gemini API Key</Label>
+                  <Input
+                    id="apiKey"
+                    type="password"
+                    value={geminiApiKey}
+                    onChange={(e) => setGeminiApiKey(e.target.value)}
+                    placeholder="Enter your Gemini API key"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Get your free API key from Google AI Studio
+                  </p>
+                </div>
+                
+                {userPets.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Select Pet for Context</Label>
+                    <div className="space-y-2">
+                      {userPets.map((pet) => (
+                        <div key={pet.id} className="flex items-center space-x-2">
+                          <input
+                            type="radio"
+                            id={pet.id}
+                            name="selectedPet"
+                            checked={selectedPet?.id === pet.id}
+                            onChange={() => setSelectedPet(pet)}
+                          />
+                          <label htmlFor={pet.id} className="text-sm">
+                            {pet.name} ({pet.age}y {pet.species})
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                <Button onClick={saveApiKey} className="w-full">
+                  Save Settings
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -180,9 +313,13 @@ const DrPurr = () => {
               size="icon"
               className="absolute right-1 top-1 h-8 w-8"
               onClick={handleSendMessage}
-              disabled={!message.trim()}
+              disabled={!message.trim() || isLoading}
             >
-              <Send className="w-4 h-4" />
+              {isLoading ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
             </Button>
           </div>
         </div>
