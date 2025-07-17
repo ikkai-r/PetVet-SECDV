@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+service_account_petvet.json
 
 # Editor directories and files
 .vscode/*
