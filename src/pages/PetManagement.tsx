@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Edit, Camera, Heart, Calendar, FileText, Weight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,8 +10,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Navigation from "@/components/Navigation";
 import PetCard from "@/components/PetCard";
 
+// Import Firebase
+import { db, auth } from "@/lib/firebase"; // Adjust path as necessary
+import { collection, query, where, onSnapshot, addDoc, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { User } from "firebase/auth";
+
+// Define Pet interface for type safety
+interface Pet {
+  id: string;
+  name: string;
+  species: string;
+  breed: string;
+  dateOfBirth: string;
+  weight: string;
+  notes?: string;
+  userId: string;
+  photo?: string;
+  nextVaccine?: string;
+  status?: 'healthy' | 'warning' | 'sick';
+  vaccines?: { name: string; date: string; nextDue: string }[];
+  medications?: { name: string; date: string; nextDue: string }[];
+}
+
 const PetManagement = () => {
-  const [selectedPet, setSelectedPet] = useState<any>(null);
+  const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
   const [showAddPet, setShowAddPet] = useState(false);
   const [newPet, setNewPet] = useState({
     name: "",
@@ -21,54 +43,75 @@ const PetManagement = () => {
     weight: "",
     notes: "",
   });
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data - in real app, this would come from Supabase
-  const pets = [
-    {
-      id: "1",
-      name: "Buddy",
-      species: "Dog",
-      breed: "Golden Retriever",
-      age: "3 years",
-      photo: "",
-      nextVaccine: "Dec 15, 2024",
-      status: "healthy" as const,
-      weight: "65 lbs",
-      dateOfBirth: "2021-03-15",
-      vaccines: [
-        { name: "Rabies", date: "2024-03-15", nextDue: "2025-03-15" },
-        { name: "DHPP", date: "2024-03-15", nextDue: "2025-03-15" },
-      ],
-      medications: [
-        { name: "Flea Treatment", date: "2024-11-01", nextDue: "2024-12-01" },
-      ],
-    },
-    {
-      id: "2",
-      name: "Whiskers",
-      species: "Cat",
-      breed: "Persian",
-      age: "2 years",
-      photo: "",
-      nextVaccine: "Jan 20, 2025",
-      status: "warning" as const,
-      weight: "10 lbs",
-      dateOfBirth: "2022-06-10",
-      vaccines: [
-        { name: "FVRCP", date: "2024-01-20", nextDue: "2025-01-20" },
-        { name: "Rabies", date: "2024-01-20", nextDue: "2025-01-20" },
-      ],
-      medications: [],
-    },
-  ];
+  // Authenticate user and fetch pets
+  useEffect(() => {
+    const unsubscribeAuth = auth.onAuthStateChanged((currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        // Handle no user logged in, e.g., redirect to login
+        console.log("No user logged in.");
+        setUser(null);
+        setLoading(false);
+      }
+    });
 
-  const handleAddPet = () => {
-    console.log("Adding new pet:", newPet);
-    setShowAddPet(false);
-    setNewPet({ name: "", species: "", breed: "", dateOfBirth: "", weight: "", notes: "" });
+    return () => unsubscribeAuth();
+  }, []);
+
+  // Fetch pets when user is available
+  useEffect(() => {
+    if (user) {
+      setLoading(true);
+      setError(null);
+      const q = query(collection(db, "pets"), where("userId", "==", user.uid));
+      const unsubscribeFirestore = onSnapshot(q, (snapshot) => {
+        const fetchedPets: Pet[] = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Pet[];
+        setPets(fetchedPets);
+        setLoading(false);
+      }, (err) => {
+        console.error("Error fetching pets:", err);
+        setError("Failed to load pets. Please try again.");
+        setLoading(false);
+      });
+
+      return () => unsubscribeFirestore();
+    } else {
+      setPets([]); // Clear pets if no user
+    }
+  }, [user]); // Depend on user state
+
+  const handleAddPet = async () => {
+    if (!user) {
+      alert("You must be logged in to add a pet.");
+      return;
+    }
+    setLoading(true);
+    try {
+      await addDoc(collection(db, "pets"), {
+        ...newPet,
+        userId: user.uid, // Link pet to the current user's UID
+        createdAt: new Date(),
+      });
+      setShowAddPet(false);
+      setNewPet({ name: "", species: "", breed: "", dateOfBirth: "", weight: "", notes: "" });
+    } catch (e) {
+      console.error("Error adding document: ", e);
+      setError("Failed to add pet. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const PetDetailsDialog = ({ pet, onClose }: { pet: any; onClose: () => void }) => (
+  const PetDetailsDialog = ({ pet, onClose }: { pet: Pet | null; onClose: () => void }) => (
     <Dialog open={!!pet} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
@@ -111,20 +154,24 @@ const PetManagement = () => {
           <div>
             <Label className="text-sm font-medium mb-2 block">Vaccinations</Label>
             <div className="space-y-2">
-              {pet?.vaccines.map((vaccine: any, index: number) => (
-                <div key={index} className="flex justify-between items-center p-2 bg-muted rounded-lg">
-                  <span className="text-sm">{vaccine.name}</span>
-                  <span className="text-xs text-muted-foreground">Due: {vaccine.nextDue}</span>
-                </div>
-              ))}
+              {pet?.vaccines && pet.vaccines.length > 0 ? (
+                pet.vaccines.map((vaccine: any, index: number) => (
+                  <div key={index} className="flex justify-between items-center p-2 bg-muted rounded-lg">
+                    <span className="text-sm">{vaccine.name}</span>
+                    <span className="text-xs text-muted-foreground">Due: {vaccine.nextDue}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No vaccinations recorded</p>
+              )}
             </div>
           </div>
 
           <div>
             <Label className="text-sm font-medium mb-2 block">Medications</Label>
             <div className="space-y-2">
-              {pet?.medications.length > 0 ? (
-                pet?.medications.map((med: any, index: number) => (
+              {pet?.medications && pet.medications.length > 0 ? (
+                pet.medications.map((med: any, index: number) => (
                   <div key={index} className="flex justify-between items-center p-2 bg-muted rounded-lg">
                     <span className="text-sm">{med.name}</span>
                     <span className="text-xs text-muted-foreground">Due: {med.nextDue}</span>
@@ -151,14 +198,39 @@ const PetManagement = () => {
     </Dialog>
   );
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading pets...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-red-500">
+        <p>{error}</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-gray-600">
+        <p>Please log in to manage your pets.</p>
+        {/* Potentially add a login button here */}
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <div className="gradient-accent p-6 rounded-b-3xl">
         <div className="flex items-center justify-between">
           <h1 className="text-white font-bold">My Pets</h1>
-          <Button 
-            variant="secondary" 
+          <Button
+            variant="secondary"
             size="sm"
             onClick={() => setShowAddPet(true)}
             className="bg-white/20 text-white hover:bg-white/30"
@@ -172,13 +244,17 @@ const PetManagement = () => {
 
       {/* Pet List */}
       <div className="p-6 space-y-4">
-        {pets.map((pet) => (
-          <PetCard
-            key={pet.id}
-            pet={pet}
-            onEdit={(pet) => setSelectedPet(pet)}
-          />
-        ))}
+        {pets.length > 0 ? (
+          pets.map((pet) => (
+            <PetCard
+              key={pet.id}
+              pet={pet}
+              onEdit={() => setSelectedPet(pet)} // Pass the whole pet object
+            />
+          ))
+        ) : (
+          <p className="text-center text-muted-foreground">No pets added yet. Click "Add Pet" to get started! 🐾</p>
+        )}
       </div>
 
       {/* Quick Actions */}

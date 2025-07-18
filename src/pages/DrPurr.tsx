@@ -4,54 +4,86 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import Navigation from "@/components/Navigation";
 import { GeminiService } from "@/services/gemini";
 import { useAuth } from "@/hooks/useAuth";
-import { getUserPets } from "@/services/firestore";
+import { getUserPets } from "@/services/firestore"; // This is crucial for fetching from Firebase
 import { Pet } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-const res = await fetch("http://localhost:3001/api/gemini-token");
-const { token } = await res.json();
 
+// Fetch Gemini API key at the top level
+// Note: This fetch call runs outside the component.
+// Ensure your server at http://localhost:3001/api/gemini-token is running
+// and correctly returning the API key.
+let geminiToken = "";
+(async () => {
+  try {
+    const res = await fetch("http://localhost:3001/api/gemini-token");
+    const { token } = await res.json();
+    if (token) {
+      geminiToken = token;
+    } else {
+      console.error("API key missing in server response from /api/gemini-token");
+    }
+  } catch (err) {
+    console.error("Failed to load Gemini API key from server", err);
+  }
+})();
 
 const DrPurr = () => {
-  const { user } = useAuth();
+  const { user } = useAuth(); // Assuming useAuth correctly provides the current user
   const { toast } = useToast();
   const [message, setMessage] = useState("");
-  const [geminiApiKey, setGeminiApiKey] = useState("");
+  const [geminiApiKey, setGeminiApiKey] = useState(""); // This state will hold the fetched key
   const [userPets, setUserPets] = useState<Pet[]>([]);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [messages, setMessages] = useState([  ]);
+  const [messages, setMessages] = useState([]);
 
   useEffect(() => {
-    const fetchApiKey = async () => {
-      try {
-        if (token) {
-          setGeminiApiKey(token);
-        } else {
-          console.error("API key missing in server response");
-        }
-      } catch (err) {
-        console.error("Failed to load Gemini API key", err);
-      }
-    };
+    // Set the Gemini API key fetched from the server
+    if (geminiToken) {
+      setGeminiApiKey(geminiToken);
+    }
 
-    fetchApiKey();
-    loadUserPets();
-  }, []);
+    // Load user pets only if a user is logged in
+    if (user && user.uid) {
+      loadUserPets();
+    }
+  }, [user]); // Re-run effect if 'user' object changes (e.g., user logs in)
 
   const loadUserPets = async () => {
+    // Ensure user is available before trying to fetch pets
+    if (!user || !user.uid) {
+      console.warn("User not authenticated, cannot load pets.");
+      return;
+    }
+
     try {
-      const pets = await getUserPets(user!.uid);
+      // Assuming getUserPets handles the Firebase query to /pets collection
+      // and returns an array of Pet objects.
+      const pets = await getUserPets(user.uid);
       setUserPets(pets);
       if (pets.length > 0 && !selectedPet) {
+        // Automatically select the first pet if none is selected
         setSelectedPet(pets[0]);
       }
     } catch (error) {
       console.error("Error loading pets:", error);
+      toast({
+        title: "Error loading pets",
+        description: "Could not fetch your pet data. Please try again later.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -154,12 +186,16 @@ const DrPurr = () => {
                 <Settings className="w-5 h-5" />
               </Button>
             </DialogTrigger>
+
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Dr. Purr Settings</DialogTitle>
+                <DialogDescription className="sr-only">
+                  Adjust settings for Dr. Purr, including selecting a pet for context.
+                </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
 
+              <div className="space-y-4">
                 {userPets.length > 0 && (
                   <div className="space-y-2">
                     <Label>Select Pet for Context</Label>
@@ -180,6 +216,12 @@ const DrPurr = () => {
                       ))}
                     </div>
                   </div>
+                )}
+                {/* Optional: Add a message if no pets are found */}
+                {userPets.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    No pets found. Please add a pet to get personalized advice.
+                  </p>
                 )}
               </div>
             </DialogContent>

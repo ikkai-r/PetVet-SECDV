@@ -34,17 +34,53 @@ export const getNearbyVetClinics = async (lat: number, lng: number, radiusKm: nu
 };
 
 // Pets
-export const getUserPets = async (ownerId: string): Promise<Pet[]> => {
-  const q = query(
-    collection(db, 'pets'),
-    where('owner_id', '==', ownerId),
-    orderBy('name')
-  );
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  })) as Pet[];
+export const getUserPets = async (userId) => {
+  try {
+    console.log('Fetching pets for userId:', userId);
+    
+    // Create a query to get pets where userId matches
+    const petsQuery = query(
+      collection(db, 'pets'),
+      where('userId', '==', userId)
+    );
+    
+    const querySnapshot = await getDocs(petsQuery);
+    
+    console.log('Query snapshot size:', querySnapshot.size);
+    
+    const pets = [];
+    querySnapshot.forEach((doc) => {
+      const petData = doc.data();
+      console.log('Pet data:', petData);
+      
+      // Calculate age from dateOfBirth if needed
+      let age = petData.age;
+      if (!age && petData.dateOfBirth) {
+        const birthDate = new Date(petData.dateOfBirth);
+        const today = new Date();
+        age = today.getFullYear() - birthDate.getFullYear();
+      }
+      
+      pets.push({
+        id: doc.id,
+        name: petData.name,
+        species: petData.species,
+        breed: petData.breed,
+        age: age || 0,
+        weight: petData.weight,
+        notes: petData.notes,
+        dateOfBirth: petData.dateOfBirth,
+        userId: petData.userId
+      });
+    });
+    
+    console.log('Processed pets:', pets);
+    return pets;
+    
+  } catch (error) {
+    console.error('Error fetching pets:', error);
+    throw error;
+  }
 };
 
 export const addPet = async (pet: Omit<Pet, 'id'>): Promise<string> => {
