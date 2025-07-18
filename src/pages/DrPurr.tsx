@@ -3,7 +3,7 @@ import { Send, Bot, User, Heart, AlertCircle, Camera, Settings } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import Navigation from "@/components/Navigation";
@@ -12,41 +12,36 @@ import { useAuth } from "@/hooks/useAuth";
 import { getUserPets } from "@/services/firestore";
 import { Pet } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+const res = await fetch("http://localhost:3001/api/gemini-token");
+const { token } = await res.json();
+
 
 const DrPurr = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [message, setMessage] = useState("");
-  const [geminiApiKey, setGeminiApiKey] = useState(localStorage.getItem('gemini_api_key') || "");
+  const [geminiApiKey, setGeminiApiKey] = useState("");
   const [userPets, setUserPets] = useState<Pet[]>([]);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [messages, setMessages] = useState([
-    {
-      id: "1",
-      type: "ai",
-      content: "Hello! I'm Dr. Purr, your AI veterinary assistant. I'm here to help with any questions about your pet's health and well-being. How can I assist you today?",
-      timestamp: new Date(),
-    },
-    {
-      id: "2",
-      type: "user",
-      content: "Hi! My cat Whiskers has been sleeping more than usual lately. Should I be concerned?",
-      timestamp: new Date(),
-    },
-    {
-      id: "3",
-      type: "ai",
-      content: "I understand your concern about Whiskers' increased sleeping. While cats do sleep 12-16 hours a day normally, a sudden change in sleep patterns can indicate various things. Here are some questions to help me better assess:\n\n• Has Whiskers' appetite changed?\n• Any changes in litter box habits?\n• Is she still playing or responding to you?\n• Any visible signs of discomfort?\n\nBased on her profile, she's a 2-year-old Persian. If this behavior continues for more than a few days, I'd recommend scheduling a check-up with your vet.",
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState([  ]);
 
   useEffect(() => {
-    if (user) {
-      loadUserPets();
-    }
-  }, [user]);
+    const fetchApiKey = async () => {
+      try {
+        if (token) {
+          setGeminiApiKey(token);
+        } else {
+          console.error("API key missing in server response");
+        }
+      } catch (err) {
+        console.error("Failed to load Gemini API key", err);
+      }
+    };
+
+    fetchApiKey();
+    loadUserPets();
+  }, []);
 
   const loadUserPets = async () => {
     try {
@@ -56,17 +51,17 @@ const DrPurr = () => {
         setSelectedPet(pets[0]);
       }
     } catch (error) {
-      console.error('Error loading pets:', error);
+      console.error("Error loading pets:", error);
     }
   };
 
   const handleSendMessage = async () => {
     if (!message.trim()) return;
-    
+
     if (!geminiApiKey) {
       toast({
         title: "API Key Required",
-        description: "Please add your Gemini API key in settings to chat with Dr. Purr.",
+        description: "The Gemini API key is not configured on the server.",
         variant: "destructive",
       });
       return;
@@ -79,25 +74,27 @@ const DrPurr = () => {
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, newMessage]);
+    setMessages((prev) => [...prev, newMessage]);
     const currentMessage = message;
     setMessage("");
     setIsLoading(true);
 
     try {
       const geminiService = new GeminiService(geminiApiKey);
-      const petContext = selectedPet ? {
-        name: selectedPet.name,
-        age: selectedPet.age,
-        species: selectedPet.species,
-        breed: selectedPet.breed
-      } : undefined;
+      const petContext = selectedPet
+        ? {
+            name: selectedPet.name,
+            age: selectedPet.age,
+            species: selectedPet.species,
+            breed: selectedPet.breed,
+          }
+        : undefined;
 
       const response = await geminiService.sendMessage(
         currentMessage,
-        messages.filter(m => m.type === 'ai').map(m => ({
-          role: 'model' as const,
-          parts: [{ text: m.content }]
+        messages.filter((m) => m.type === "ai").map((m) => ({
+          role: "model" as const,
+          parts: [{ text: m.content }],
         })),
         petContext
       );
@@ -108,8 +105,8 @@ const DrPurr = () => {
         content: response,
         timestamp: new Date(),
       };
-      
-      setMessages(prev => [...prev, aiResponse]);
+
+      setMessages((prev) => [...prev, aiResponse]);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -119,14 +116,6 @@ const DrPurr = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const saveApiKey = () => {
-    localStorage.setItem('gemini_api_key', geminiApiKey);
-    toast({
-      title: "API Key Saved",
-      description: "Your Gemini API key has been saved locally.",
-    });
   };
 
   const quickQuestions = [
@@ -154,11 +143,11 @@ const DrPurr = () => {
             <div>
               <h1 className="text-white font-bold">Dr. Purr</h1>
               <p className="text-white/90 text-sm">
-                {selectedPet ? `Chatting about ${selectedPet.name}` : 'Your AI Veterinary Assistant'}
+                {selectedPet ? `Chatting about ${selectedPet.name}` : "Your AI Veterinary Assistant"}
               </p>
             </div>
           </div>
-          
+
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
@@ -170,20 +159,7 @@ const DrPurr = () => {
                 <DialogTitle>Dr. Purr Settings</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="apiKey">Gemini API Key</Label>
-                  <Input
-                    id="apiKey"
-                    type="password"
-                    value={geminiApiKey}
-                    onChange={(e) => setGeminiApiKey(e.target.value)}
-                    placeholder="Enter your Gemini API key"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Get your free API key from Google AI Studio
-                  </p>
-                </div>
-                
+
                 {userPets.length > 0 && (
                   <div className="space-y-2">
                     <Label>Select Pet for Context</Label>
@@ -205,10 +181,6 @@ const DrPurr = () => {
                     </div>
                   </div>
                 )}
-                
-                <Button onClick={saveApiKey} className="w-full">
-                  Save Settings
-                </Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -237,20 +209,19 @@ const DrPurr = () => {
       <div className="flex-1 p-6 pb-0">
         <div className="space-y-4">
           {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex ${msg.type === "user" ? "justify-end" : "justify-start"}`}
-            >
+            <div key={msg.id} className={`flex ${msg.type === "user" ? "justify-end" : "justify-start"}`}>
               <div className={`flex items-start gap-3 max-w-[80%] ${msg.type === "user" ? "flex-row-reverse" : ""}`}>
                 <Avatar className="w-8 h-8">
-                  <AvatarFallback className={msg.type === "user" ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground"}>
+                  <AvatarFallback
+                    className={msg.type === "user" ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground"}
+                  >
                     {msg.type === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
                   </AvatarFallback>
                 </Avatar>
                 <div className={`rounded-2xl p-3 ${msg.type === "user" ? "chat-bubble-user" : "chat-bubble-ai"}`}>
                   <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                   <p className="text-xs opacity-70 mt-1">
-                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </p>
                 </div>
               </div>
@@ -306,7 +277,6 @@ const DrPurr = () => {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Ask Dr. Purr anything..."
-              onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
               className="pr-12"
             />
             <Button
