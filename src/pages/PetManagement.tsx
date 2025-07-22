@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Plus, Edit, Camera, Heart, Calendar, FileText, Weight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,12 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Navigation from "@/components/Navigation";
 import PetCard from "@/components/PetCard";
 
-// Import Firebase
-import { db, auth } from "@/lib/firebase"; // Adjust path as necessary
-import { collection, query, where, onSnapshot, addDoc, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
+import { collection, query, where, onSnapshot, addDoc, updateDoc, doc } from "firebase/firestore";
 import { User } from "firebase/auth";
 
-// Define Pet interface for type safety
 interface Pet {
   id: string;
   name: string;
@@ -30,11 +28,27 @@ interface Pet {
   status?: 'healthy' | 'warning' | 'sick';
   vaccines?: { name: string; date: string; nextDue: string }[];
   medications?: { name: string; date: string; nextDue: string }[];
+  records?: { title: string; description: string; date: string }[];
 }
 
 const PetManagement = () => {
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
+  const [showPetDetails, setShowPetDetails] = useState(false);
   const [showAddPet, setShowAddPet] = useState(false);
+  const [showAddRecord, setShowAddRecord] = useState(false);
+  const [showAddVaccine, setShowAddVaccine] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  
+  const [newRecord, setNewRecord] = useState({ title: "", description: "", date: "" });
+  const [newVaccine, setNewVaccine] = useState({ name: "", date: "", nextDue: "" });
+  const [editPetData, setEditPetData] = useState({
+    name: "",
+    species: "",
+    breed: "",
+    dateOfBirth: "",
+    weight: "",
+    notes: "",
+  });
   const [newPet, setNewPet] = useState({
     name: "",
     species: "",
@@ -47,76 +61,163 @@ const PetManagement = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Use refs to prevent form resets during real-time updates
+  const isFormActiveRef = useRef(false);
+  const formDataRef = useRef<{
+    record: { title: string; description: string; date: string };
+    vaccine: { name: string; date: string; nextDue: string };
+    editPet: any;
+  }>({
+    record: { title: "", description: "", date: "" },
+    vaccine: { name: "", date: "", nextDue: "" },
+    editPet: {}
+  });
 
-  // Authenticate user and fetch pets
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged((currentUser) => {
       if (currentUser) {
         setUser(currentUser);
       } else {
-        // Handle no user logged in, e.g., redirect to login
-        console.log("No user logged in.");
         setUser(null);
         setLoading(false);
       }
     });
-
     return () => unsubscribeAuth();
   }, []);
 
-  // Fetch pets when user is available
   useEffect(() => {
     if (user) {
       setLoading(true);
       setError(null);
       const q = query(collection(db, "pets"), where("userId", "==", user.uid));
-      const unsubscribeFirestore = onSnapshot(q, (snapshot) => {
-        const fetchedPets: Pet[] = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Pet[];
-        setPets(fetchedPets);
-        setLoading(false);
-      }, (err) => {
-        console.error("Error fetching pets:", err);
-        setError("Failed to load pets. Please try again.");
-        setLoading(false);
-      });
-
+      const unsubscribeFirestore = onSnapshot(
+        q,
+        (snapshot) => {
+          const fetchedPets: Pet[] = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as Pet[];
+          
+          setPets(fetchedPets);
+          setLoading(false);
+        },
+        (err) => {
+          setError("Failed to load pets. Please try again.");
+          setLoading(false);
+        }
+      );
       return () => unsubscribeFirestore();
     } else {
-      setPets([]); // Clear pets if no user
+      setPets([]);
     }
-  }, [user]); // Depend on user state
+  }, [user]);
+
+  // Separate effect to update selectedPet when pets data changes
+  useEffect(() => {
+    if (selectedPet && pets.length > 0 && !isFormActiveRef.current) {
+      const updatedSelectedPet = pets.find(pet => pet.id === selectedPet.id);
+      if (updatedSelectedPet) {
+        setSelectedPet(updatedSelectedPet);
+      }
+    }
+  }, [pets]);
 
   const handleAddPet = async () => {
-    if (!user) {
-      alert("You must be logged in to add a pet.");
-      return;
-    }
+    if (!user) return;
     setLoading(true);
     try {
       await addDoc(collection(db, "pets"), {
         ...newPet,
-        userId: user.uid, // Link pet to the current user's UID
+        userId: user.uid,
         createdAt: new Date(),
+        vaccines: [],
+        records: [],
+        medications: []
       });
       setShowAddPet(false);
       setNewPet({ name: "", species: "", breed: "", dateOfBirth: "", weight: "", notes: "" });
     } catch (e) {
-      console.error("Error adding document: ", e);
       setError("Failed to add pet. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const PetDetailsDialog = ({ pet, onClose }: { pet: Pet | null; onClose: () => void }) => (
-    <Dialog open={!!pet} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+  const handleAddRecord = async () => {
+    if (!selectedPet || !user || !newRecord.title || !newRecord.date) return;
+    
+    try {
+      const petRef = doc(db, "pets", selectedPet.id);
+      const updatedRecords = [...(selectedPet.records || []), newRecord];
+      
+      await updateDoc(petRef, {
+        records: updatedRecords
+      });
+      
+      setNewRecord({ title: "", description: "", date: "" });
+      setShowAddRecord(false);
+      isFormActiveRef.current = false;
+    } catch (error) {
+      console.error("Error adding record:", error);
+      setError("Failed to add record. Please try again.");
+    }
+  };
+
+  const handleAddVaccine = async () => {
+    if (!selectedPet || !user || !newVaccine.name || !newVaccine.date) return;
+    
+    try {
+      const petRef = doc(db, "pets", selectedPet.id);
+      const updatedVaccines = [...(selectedPet.vaccines || []), newVaccine];
+      
+      await updateDoc(petRef, {
+        vaccines: updatedVaccines
+      });
+      
+      setNewVaccine({ name: "", date: "", nextDue: "" });
+      setShowAddVaccine(false);
+      isFormActiveRef.current = false;
+    } catch (error) {
+      console.error("Error adding vaccine:", error);
+      setError("Failed to add vaccine. Please try again.");
+    }
+  };
+
+  const handleEditProfile = async () => {
+    if (!selectedPet || !user) return;
+    
+    try {
+      const petRef = doc(db, "pets", selectedPet.id);
+      await updateDoc(petRef, editPetData);
+      
+      setShowEditProfile(false);
+      isFormActiveRef.current = false;
+    } catch (error) {
+      console.error("Error updating pet profile:", error);
+      setError("Failed to update pet profile. Please try again.");
+    }
+  };
+
+  const openEditProfile = (pet: Pet) => {
+    setEditPetData({
+      name: pet.name,
+      species: pet.species,
+      breed: pet.breed,
+      dateOfBirth: pet.dateOfBirth,
+      weight: pet.weight,
+      notes: pet.notes || "",
+    });
+    setShowEditProfile(true);
+  };
+
+  const PetDetailsDialog = ({ pet, open, onClose }: { pet: Pet | null; open: boolean; onClose: () => void }) => (
+    <Dialog open={open} onOpenChange={(val) => { if (!val) onClose(); }}>
+      <DialogContent className="max-w-md animate-in fade-in zoom-in-95 slide-in-from-top-10">
         <DialogHeader>
           <DialogTitle>{pet?.name} - Pet Profile</DialogTitle>
         </DialogHeader>
+
         <div className="space-y-4">
           <div className="text-center">
             <div className="w-24 h-24 rounded-full bg-gradient-soft flex items-center justify-center mx-auto mb-4">
@@ -126,71 +227,401 @@ const PetManagement = () => {
                 <Heart className="w-12 h-12 text-primary" />
               )}
             </div>
-            <Button variant="outline" size="sm">
-              <Camera className="w-4 h-4 mr-2" />
-              Update Photo
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label className="text-sm font-medium">Species</Label>
-              <p className="text-sm text-muted-foreground">{pet?.species}</p>
-            </div>
-            <div>
-              <Label className="text-sm font-medium">Breed</Label>
-              <p className="text-sm text-muted-foreground">{pet?.breed}</p>
-            </div>
-            <div>
-              <Label className="text-sm font-medium">Date of Birth</Label>
-              <p className="text-sm text-muted-foreground">{pet?.dateOfBirth}</p>
-            </div>
-            <div>
-              <Label className="text-sm font-medium">Weight</Label>
-              <p className="text-sm text-muted-foreground">{pet?.weight}</p>
-            </div>
+            <p className="text-sm text-muted-foreground">{pet?.species} • {pet?.breed}</p>
+            <p className="text-sm text-muted-foreground">{pet?.dateOfBirth}</p>
+            <p className="text-sm text-muted-foreground">{pet?.weight} kg</p>
           </div>
 
           <div>
-            <Label className="text-sm font-medium mb-2 block">Vaccinations</Label>
-            <div className="space-y-2">
-              {pet?.vaccines && pet.vaccines.length > 0 ? (
-                pet.vaccines.map((vaccine: any, index: number) => (
-                  <div key={index} className="flex justify-between items-center p-2 bg-muted rounded-lg">
-                    <span className="text-sm">{vaccine.name}</span>
-                    <span className="text-xs text-muted-foreground">Due: {vaccine.nextDue}</span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">No vaccinations recorded</p>
-              )}
-            </div>
+            <Label className="block mb-1">Vaccinations</Label>
+            {pet?.vaccines?.length ? (
+              pet.vaccines.map((vaccine, idx) => (
+                <div key={idx} className="text-sm text-muted-foreground mb-2 p-2 bg-muted/50 rounded">
+                  <strong>{vaccine.name}</strong><br />
+                  Given: {vaccine.date}<br />
+                  {vaccine.nextDue && `Next Due: ${vaccine.nextDue}`}
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">No vaccines recorded</p>
+            )}
           </div>
 
           <div>
-            <Label className="text-sm font-medium mb-2 block">Medications</Label>
-            <div className="space-y-2">
-              {pet?.medications && pet.medications.length > 0 ? (
-                pet.medications.map((med: any, index: number) => (
-                  <div key={index} className="flex justify-between items-center p-2 bg-muted rounded-lg">
-                    <span className="text-sm">{med.name}</span>
-                    <span className="text-xs text-muted-foreground">Due: {med.nextDue}</span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">No medications recorded</p>
-              )}
-            </div>
+            <Label className="block mb-1">Medical Records</Label>
+            {pet?.records?.length ? (
+              pet.records.map((record, idx) => (
+                <div key={idx} className="text-sm text-muted-foreground mb-2 p-2 bg-muted/50 rounded">
+                  <strong>{record.title}</strong> ({record.date})<br />
+                  {record.description}
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">No records</p>
+            )}
           </div>
 
-          <div className="flex gap-2">
-            <Button variant="outline" className="flex-1">
+          <div className="flex flex-col gap-3">
+            <Button onClick={() => openEditProfile(pet!)}>
               <Edit className="w-4 h-4 mr-2" />
-              Edit
+              Edit Profile
             </Button>
-            <Button className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button variant="secondary" onClick={() => setShowAddRecord(true)}>
               <FileText className="w-4 h-4 mr-2" />
-              Records
+              Add Record
+            </Button>
+            <Button variant="outline" onClick={() => setShowAddVaccine(true)}>
+              <Calendar className="w-4 h-4 mr-2" />
+              Add Vaccine
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
+  const AddRecordDialog = () => {
+    // Initialize form state once when dialog opens
+    useEffect(() => {
+      if (showAddRecord && !isFormActiveRef.current) {
+        isFormActiveRef.current = true;
+        // Only initialize if form is empty
+        if (!newRecord.title && !newRecord.description && !newRecord.date) {
+          const today = new Date().toISOString().split('T')[0];
+          setNewRecord({ title: "", description: "", date: today });
+        }
+      }
+    }, [showAddRecord]);
+
+    const handleDialogClose = (open: boolean) => {
+      if (!open) {
+        setShowAddRecord(false);
+        isFormActiveRef.current = false;
+        setNewRecord({ title: "", description: "", date: "" });
+      }
+    };
+
+    return (
+      <Dialog open={showAddRecord} onOpenChange={handleDialogClose}>
+        <DialogContent className="max-w-md animate-in fade-in zoom-in-95 slide-in-from-top-10">
+          <DialogHeader>
+            <DialogTitle>Add Medical Record</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Title *</Label>
+              <Input 
+                placeholder="e.g., Annual Checkup, Surgery, etc."
+                value={newRecord.title} 
+                onChange={(e) => {
+                  setNewRecord(prev => ({ ...prev, title: e.target.value }));
+                }} 
+              />
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea 
+                placeholder="Enter details about the medical record..."
+                value={newRecord.description} 
+                onChange={(e) => {
+                  setNewRecord(prev => ({ ...prev, description: e.target.value }));
+                }} 
+              />
+            </div>
+            <div>
+              <Label>Date *</Label>
+              <Input 
+                type="date" 
+                value={newRecord.date} 
+                onChange={(e) => {
+                  setNewRecord(prev => ({ ...prev, date: e.target.value }));
+                }} 
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                onClick={handleAddRecord}
+                disabled={!newRecord.title || !newRecord.date}
+              >
+                Save Record
+              </Button>
+              <Button variant="outline" onClick={() => handleDialogClose(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  const AddVaccineDialog = () => {
+    // Initialize form state once when dialog opens
+    useEffect(() => {
+      if (showAddVaccine && !isFormActiveRef.current) {
+        isFormActiveRef.current = true;
+        // Only initialize if form is empty
+        if (!newVaccine.name && !newVaccine.date && !newVaccine.nextDue) {
+          const today = new Date().toISOString().split('T')[0];
+          setNewVaccine({ name: "", date: today, nextDue: "" });
+        }
+      }
+    }, [showAddVaccine]);
+
+    const handleDialogClose = (open: boolean) => {
+      if (!open) {
+        setShowAddVaccine(false);
+        isFormActiveRef.current = false;
+        setNewVaccine({ name: "", date: "", nextDue: "" });
+      }
+    };
+
+    return (
+      <Dialog open={showAddVaccine} onOpenChange={handleDialogClose}>
+        <DialogContent className="max-w-md animate-in fade-in zoom-in-95 slide-in-from-top-10">
+          <DialogHeader>
+            <DialogTitle>Add Vaccination</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Vaccine Name *</Label>
+              <Input 
+                placeholder="e.g., Rabies, DHPP, etc."
+                value={newVaccine.name} 
+                onChange={(e) => {
+                  setNewVaccine(prev => ({ ...prev, name: e.target.value }));
+                }} 
+              />
+            </div>
+            <div>
+              <Label>Date Given *</Label>
+              <Input 
+                type="date" 
+                value={newVaccine.date} 
+                onChange={(e) => {
+                  setNewVaccine(prev => ({ ...prev, date: e.target.value }));
+                }} 
+              />
+            </div>
+            <div>
+              <Label>Next Due Date</Label>
+              <Input 
+                type="date" 
+                value={newVaccine.nextDue} 
+                onChange={(e) => {
+                  setNewVaccine(prev => ({ ...prev, nextDue: e.target.value }));
+                }} 
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                onClick={handleAddVaccine}
+                disabled={!newVaccine.name || !newVaccine.date}
+              >
+                Save Vaccine
+              </Button>
+              <Button variant="outline" onClick={() => handleDialogClose(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  const EditProfileDialog = () => {
+    // Initialize form state once when dialog opens
+    useEffect(() => {
+      if (showEditProfile) {
+        isFormActiveRef.current = true;
+      } else {
+        isFormActiveRef.current = false;
+      }
+    }, [showEditProfile]);
+
+    return (
+      <Dialog open={showEditProfile} onOpenChange={(open) => {
+        setShowEditProfile(open);
+        if (!open) {
+          isFormActiveRef.current = false;
+        }
+      }}>
+        <DialogContent className="max-w-md animate-in fade-in zoom-in-95 slide-in-from-top-10">
+          <DialogHeader>
+            <DialogTitle>Edit Pet Profile</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Name</Label>
+              <Input 
+                value={editPetData.name} 
+                onChange={(e) => {
+                  const updatedData = { ...editPetData, name: e.target.value };
+                  setEditPetData(updatedData);
+                  formDataRef.current.editPet = updatedData;
+                }} 
+              />
+            </div>
+            <div>
+              <Label>Species</Label>
+              <Select 
+                value={editPetData.species} 
+                onValueChange={(value) => {
+                  const updatedData = { ...editPetData, species: value };
+                  setEditPetData(updatedData);
+                  formDataRef.current.editPet = updatedData;
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Dog">Dog</SelectItem>
+                  <SelectItem value="Cat">Cat</SelectItem>
+                  <SelectItem value="Bird">Bird</SelectItem>
+                  <SelectItem value="Fish">Fish</SelectItem>
+                  <SelectItem value="Rabbit">Rabbit</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Breed</Label>
+              <Input 
+                value={editPetData.breed} 
+                onChange={(e) => {
+                  const updatedData = { ...editPetData, breed: e.target.value };
+                  setEditPetData(updatedData);
+                  formDataRef.current.editPet = updatedData;
+                }} 
+              />
+            </div>
+            <div>
+              <Label>Date of Birth</Label>
+              <Input 
+                type="date" 
+                value={editPetData.dateOfBirth} 
+                onChange={(e) => {
+                  const updatedData = { ...editPetData, dateOfBirth: e.target.value };
+                  setEditPetData(updatedData);
+                  formDataRef.current.editPet = updatedData;
+                }} 
+              />
+            </div>
+            <div>
+              <Label>Weight (kg)</Label>
+              <Input 
+                placeholder="e.g., 15, 7.5, 2.3"
+                value={editPetData.weight} 
+                onChange={(e) => {
+                  const updatedData = { ...editPetData, weight: e.target.value };
+                  setEditPetData(updatedData);
+                  formDataRef.current.editPet = updatedData;
+                }} 
+              />
+            </div>
+            <div>
+              <Label>Notes</Label>
+              <Textarea 
+                placeholder="Any additional notes about your pet..."
+                value={editPetData.notes} 
+                onChange={(e) => {
+                  const updatedData = { ...editPetData, notes: e.target.value };
+                  setEditPetData(updatedData);
+                  formDataRef.current.editPet = updatedData;
+                }} 
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleEditProfile}>
+                Save Changes
+              </Button>
+              <Button variant="outline" onClick={() => {
+                setShowEditProfile(false);
+                isFormActiveRef.current = false;
+              }}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  const AddPetDialog = () => (
+    <Dialog open={showAddPet} onOpenChange={setShowAddPet}>
+      <DialogContent className="max-w-md animate-in fade-in zoom-in-95 slide-in-from-top-10">
+        <DialogHeader>
+          <DialogTitle>Add New Pet</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>Name</Label>
+            <Input 
+              value={newPet.name} 
+              onChange={(e) => setNewPet({ ...newPet, name: e.target.value })} 
+              placeholder="Enter pet's name"
+            />
+          </div>
+          <div>
+            <Label>Species</Label>
+            <Select 
+              value={newPet.species} 
+              onValueChange={(value) => setNewPet({ ...newPet, species: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select species" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Dog">Dog</SelectItem>
+                <SelectItem value="Cat">Cat</SelectItem>
+                <SelectItem value="Bird">Bird</SelectItem>
+                <SelectItem value="Fish">Fish</SelectItem>
+                <SelectItem value="Rabbit">Rabbit</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Breed</Label>
+            <Input 
+              value={newPet.breed} 
+              onChange={(e) => setNewPet({ ...newPet, breed: e.target.value })} 
+              placeholder="Enter breed"
+            />
+          </div>
+          <div>
+            <Label>Date of Birth</Label>
+            <Input 
+              type="date" 
+              value={newPet.dateOfBirth} 
+              onChange={(e) => setNewPet({ ...newPet, dateOfBirth: e.target.value })} 
+            />
+          </div>
+          <div>
+            <Label>Weight</Label>
+            <Input 
+              value={newPet.weight} 
+              onChange={(e) => setNewPet({ ...newPet, weight: e.target.value })} 
+              placeholder="e.g., 15 lbs, 7 kg"
+            />
+          </div>
+          <div>
+            <Label>Notes</Label>
+            <Textarea 
+              value={newPet.notes} 
+              onChange={(e) => setNewPet({ ...newPet, notes: e.target.value })} 
+              placeholder="Any additional notes..."
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={handleAddPet} disabled={!newPet.name || !newPet.species}>
+              Add Pet
+            </Button>
+            <Button variant="outline" onClick={() => setShowAddPet(false)}>
+              Cancel
             </Button>
           </div>
         </div>
@@ -200,32 +631,17 @@ const PetManagement = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading pets...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-red-500">
-        <p>{error}</p>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-gray-600">
-        <p>Please log in to manage your pets.</p>
-        {/* Potentially add a login button here */}
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Loading pets...</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
       <div className="gradient-accent p-6 rounded-b-3xl">
         <div className="flex items-center justify-between">
           <h1 className="text-white font-bold">My Pets</h1>
@@ -242,14 +658,24 @@ const PetManagement = () => {
         <p className="text-white/90 mt-2">Manage your furry family members</p>
       </div>
 
-      {/* Pet List */}
+      {error && (
+        <div className="p-6">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            {error}
+          </div>
+        </div>
+      )}
+
       <div className="p-6 space-y-4">
         {pets.length > 0 ? (
           pets.map((pet) => (
             <PetCard
               key={pet.id}
               pet={pet}
-              onEdit={() => setSelectedPet(pet)} // Pass the whole pet object
+              onEdit={() => {
+                setSelectedPet(pet);
+                setShowPetDetails(true);
+              }}
             />
           ))
         ) : (
@@ -257,111 +683,21 @@ const PetManagement = () => {
         )}
       </div>
 
-      {/* Quick Actions */}
-      <div className="px-6">
-        <h2 className="font-semibold mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 gap-3">
-          <Button variant="outline" className="h-auto p-4 flex flex-col items-center">
-            <Calendar className="w-6 h-6 mb-2" />
-            <span className="text-sm">Add Appointment</span>
-          </Button>
-          <Button variant="outline" className="h-auto p-4 flex flex-col items-center">
-            <Weight className="w-6 h-6 mb-2" />
-            <span className="text-sm">Track Weight</span>
-          </Button>
-          <Button variant="outline" className="h-auto p-4 flex flex-col items-center">
-            <FileText className="w-6 h-6 mb-2" />
-            <span className="text-sm">Upload Records</span>
-          </Button>
-          <Button variant="outline" className="h-auto p-4 flex flex-col items-center">
-            <Heart className="w-6 h-6 mb-2" />
-            <span className="text-sm">Health Log</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Add Pet Dialog */}
-      <Dialog open={showAddPet} onOpenChange={setShowAddPet}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add New Pet</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="name">Pet Name</Label>
-              <Input
-                id="name"
-                value={newPet.name}
-                onChange={(e) => setNewPet({ ...newPet, name: e.target.value })}
-                placeholder="Enter pet name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="species">Species</Label>
-              <Select value={newPet.species} onValueChange={(value) => setNewPet({ ...newPet, species: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select species" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="dog">Dog</SelectItem>
-                  <SelectItem value="cat">Cat</SelectItem>
-                  <SelectItem value="bird">Bird</SelectItem>
-                  <SelectItem value="rabbit">Rabbit</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="breed">Breed</Label>
-              <Input
-                id="breed"
-                value={newPet.breed}
-                onChange={(e) => setNewPet({ ...newPet, breed: e.target.value })}
-                placeholder="Enter breed"
-              />
-            </div>
-            <div>
-              <Label htmlFor="dateOfBirth">Date of Birth</Label>
-              <Input
-                id="dateOfBirth"
-                type="date"
-                value={newPet.dateOfBirth}
-                onChange={(e) => setNewPet({ ...newPet, dateOfBirth: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="weight">Weight</Label>
-              <Input
-                id="weight"
-                value={newPet.weight}
-                onChange={(e) => setNewPet({ ...newPet, weight: e.target.value })}
-                placeholder="e.g., 25 lbs"
-              />
-            </div>
-            <div>
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                value={newPet.notes}
-                onChange={(e) => setNewPet({ ...newPet, notes: e.target.value })}
-                placeholder="Any special notes about your pet..."
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowAddPet(false)} className="flex-1">
-                Cancel
-              </Button>
-              <Button onClick={handleAddPet} className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90">
-                Add Pet
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Pet Details Dialog */}
-      <PetDetailsDialog pet={selectedPet} onClose={() => setSelectedPet(null)} />
-
+      {selectedPet && (
+        <PetDetailsDialog 
+          pet={selectedPet} 
+          open={showPetDetails} 
+          onClose={() => {
+            setShowPetDetails(false);
+            setSelectedPet(null);
+          }} 
+        />
+      )}
+      
+      <AddRecordDialog />
+      <AddVaccineDialog />
+      <EditProfileDialog />
+      <AddPetDialog />
       <Navigation />
     </div>
   );
