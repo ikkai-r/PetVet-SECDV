@@ -76,6 +76,7 @@ const DrPurr = () => {
       if (pets.length > 0 && !selectedPet) {
         // Automatically select the first pet if none is selected
         setSelectedPet(pets[0]);
+        console.log(pets[0]);
       }
     } catch (error) {
       console.error("Error loading pets:", error);
@@ -113,14 +114,7 @@ const DrPurr = () => {
 
     try {
       const geminiService = new GeminiService(geminiApiKey);
-      const petContext = selectedPet
-        ? {
-            name: selectedPet.name,
-            age: selectedPet.age,
-            species: selectedPet.species,
-            breed: selectedPet.breed,
-          }
-        : undefined;
+      const petContext = selectedPet ? { ...selectedPet } : undefined;
 
       const response = await geminiService.sendMessage(
         currentMessage,

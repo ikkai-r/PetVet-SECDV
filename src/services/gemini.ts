@@ -26,7 +26,6 @@ export class GeminiService {
   ): Promise<string> {
     try {
       const systemPrompt = this.buildSystemPrompt(petContext);
-      
       const contents = [
         {
           role: 'user',
@@ -72,8 +71,15 @@ export class GeminiService {
     }
   }
 
-  private buildSystemPrompt(petContext?: { name: string; age: number; species?: string; breed?: string }): string {
-    let prompt = `You are Dr. Purr, a friendly and knowledgeable AI veterinary assistant. You provide helpful advice about pet health and well-being, but you always remind users that you're not a replacement for professional veterinary care.
+  private buildSystemPrompt(petContext?: {
+  name: string;
+  age: number;
+  species?: string;
+  breed?: string;
+  vaccines?: { name: string; date: string; nextDue: string; id?: string }[];
+  records?: { title: string; description: string; date: string; id?: string }[];
+}): string {
+  let prompt = `You are Dr. Purr, a friendly and knowledgeable AI veterinary assistant. You provide helpful advice about pet health and well-being, but you always remind users that you're not a replacement for professional veterinary care.
 
 Your personality:
 - Warm, caring, and professional
@@ -86,12 +92,14 @@ Important guidelines:
 - Never diagnose specific medical conditions
 - Provide general health advice and educational information
 - Ask clarifying questions when needed
-- Be concise but thorough in your responses`;
+- Be concise but thorough in your responses.`;
 
-    if (petContext) {
-      prompt += `\n\nYou are currently helping with ${petContext.name}, a ${petContext.age}-year-old ${petContext.species || 'pet'}${petContext.breed ? ` (${petContext.breed})` : ''}. Use this information to provide more personalized advice.`;
-    }
-
-    return prompt;
+  if (petContext) {
+    // Full raw dump for inspection / debugging
+    prompt += `\n\nYou are currently helping with the following pet context:\n\n${JSON.stringify(petContext, null, 2)}\n\nUse this information to provide more personalized advice.`;
   }
+
+  return prompt;
+}
+
 }

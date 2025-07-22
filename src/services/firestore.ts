@@ -37,22 +37,21 @@ export const getNearbyVetClinics = async (lat: number, lng: number, radiusKm: nu
 export const getUserPets = async (userId) => {
   try {
     console.log('Fetching pets for userId:', userId);
-    
-    // Create a query to get pets where userId matches
+
     const petsQuery = query(
       collection(db, 'pets'),
       where('userId', '==', userId)
     );
-    
+
     const querySnapshot = await getDocs(petsQuery);
-    
+
     console.log('Query snapshot size:', querySnapshot.size);
-    
+
     const pets = [];
     querySnapshot.forEach((doc) => {
       const petData = doc.data();
       console.log('Pet data:', petData);
-      
+
       // Calculate age from dateOfBirth if needed
       let age = petData.age;
       if (!age && petData.dateOfBirth) {
@@ -60,7 +59,27 @@ export const getUserPets = async (userId) => {
         const today = new Date();
         age = today.getFullYear() - birthDate.getFullYear();
       }
-      
+
+      // Handle vaccines array
+      const vaccines = Array.isArray(petData.vaccines)
+        ? petData.vaccines.map(v => ({
+            name: v.name || '',
+            date: v.date || '',
+            nextDue: v.nextDue || '',
+            id: v.id || null
+          }))
+        : [];
+
+      // Handle records array (medical history)
+      const records = Array.isArray(petData.records)
+        ? petData.records.map(r => ({
+            title: r.title || '',
+            description: r.description || '',
+            date: r.date || '',
+            id: r.id || null
+          }))
+        : [];
+
       pets.push({
         id: doc.id,
         name: petData.name,
@@ -70,16 +89,17 @@ export const getUserPets = async (userId) => {
         weight: petData.weight,
         notes: petData.notes,
         dateOfBirth: petData.dateOfBirth,
-        userId: petData.userId
+        userId: petData.userId,
+        photo: petData.photo || '',
+        vaccines,
+        records
       });
     });
-    
-    console.log('Processed pets:', pets);
+
     return pets;
-    
   } catch (error) {
-    console.error('Error fetching pets:', error);
-    throw error;
+    console.error('Error fetching user pets:', error);
+    return [];
   }
 };
 
