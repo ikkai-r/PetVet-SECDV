@@ -14,18 +14,37 @@ import { db, auth } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, addDoc, updateDoc, doc } from "firebase/firestore";
 import { User } from "firebase/auth";
 
+const calculateAge = (dateOfBirth: string): string => {
+  const today = new Date();
+  const birthDate = new Date(dateOfBirth);
+  let years = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    years--;
+  }
+  
+  if (years === 0) {
+    const months = Math.floor((today.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
+    return months === 1 ? '1 month' : `${months} months`;
+  }
+  
+  return years === 1 ? '1 year' : `${years} years`;
+};
+
 interface Pet {
   id: string;
   name: string;
+  age: string;
   species: string;
   breed: string;
   dateOfBirth: string;
   weight: string;
   notes?: string;
   userId: string;
-  photo?: string;
+  photo: string;
   nextVaccine?: string;
-  status?: 'healthy' | 'warning' | 'sick';
+  status: 'healthy' | 'warning' | 'overdue';
   vaccines?: { name: string; date: string; nextDue: string }[];
   medications?: { name: string; date: string; nextDue: string }[];
   records?: { title: string; description: string; date: string }[];
@@ -39,8 +58,6 @@ const PetManagement = () => {
   const [showAddVaccine, setShowAddVaccine] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   
-  const [newRecord, setNewRecord] = useState({ title: "", description: "", date: "" });
-  const [newVaccine, setNewVaccine] = useState({ name: "", date: "", nextDue: "" });
   const [editPetData, setEditPetData] = useState({
     name: "",
     species: "",
@@ -94,10 +111,19 @@ const PetManagement = () => {
       const unsubscribeFirestore = onSnapshot(
         q,
         (snapshot) => {
-          const fetchedPets: Pet[] = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          })) as Pet[];
+          const fetchedPets: Pet[] = snapshot.docs.map((doc) => {
+            const data = doc.data();
+            const dateOfBirth = data.dateOfBirth || '';
+            const age = dateOfBirth ? calculateAge(dateOfBirth) : '0 years';
+            
+            return {
+              id: doc.id,
+              ...data,
+              age,
+              status: data.status || 'healthy',
+              photo: data.photo || ''
+            };
+          }) as Pet[];
           
           setPets(fetchedPets);
           setLoading(false);
@@ -144,45 +170,6 @@ const PetManagement = () => {
     }
   };
 
-  const handleAddRecord = async () => {
-    if (!selectedPet || !user || !newRecord.title || !newRecord.date) return;
-    
-    try {
-      const petRef = doc(db, "pets", selectedPet.id);
-      const updatedRecords = [...(selectedPet.records || []), newRecord];
-      
-      await updateDoc(petRef, {
-        records: updatedRecords
-      });
-      
-      setNewRecord({ title: "", description: "", date: "" });
-      setShowAddRecord(false);
-      isFormActiveRef.current = false;
-    } catch (error) {
-      console.error("Error adding record:", error);
-      setError("Failed to add record. Please try again.");
-    }
-  };
-
-  const handleAddVaccine = async () => {
-    if (!selectedPet || !user || !newVaccine.name || !newVaccine.date) return;
-    
-    try {
-      const petRef = doc(db, "pets", selectedPet.id);
-      const updatedVaccines = [...(selectedPet.vaccines || []), newVaccine];
-      
-      await updateDoc(petRef, {
-        vaccines: updatedVaccines
-      });
-      
-      setNewVaccine({ name: "", date: "", nextDue: "" });
-      setShowAddVaccine(false);
-      isFormActiveRef.current = false;
-    } catch (error) {
-      console.error("Error adding vaccine:", error);
-      setError("Failed to add vaccine. Please try again.");
-    }
-  };
 
   const handleEditProfile = async () => {
     if (!selectedPet || !user) return;
@@ -281,15 +268,16 @@ const PetManagement = () => {
   );
 
   const AddRecordDialog = () => {
-    // Initialize form state once when dialog opens
+    const [localRecord, setLocalRecord] = useState({ title: "", description: "", date: "" });
+
+    // Initialize form when dialog opens
     useEffect(() => {
-      if (showAddRecord && !isFormActiveRef.current) {
+      if (showAddRecord) {
         isFormActiveRef.current = true;
-        // Only initialize if form is empty
-        if (!newRecord.title && !newRecord.description && !newRecord.date) {
-          const today = new Date().toISOString().split('T')[0];
-          setNewRecord({ title: "", description: "", date: today });
-        }
+        const today = new Date().toISOString().split('T')[0];
+        setLocalRecord({ title: "", description: "", date: today });
+      } else {
+        isFormActiveRef.current = false;
       }
     }, [showAddRecord]);
 
@@ -297,7 +285,25 @@ const PetManagement = () => {
       if (!open) {
         setShowAddRecord(false);
         isFormActiveRef.current = false;
-        setNewRecord({ title: "", description: "", date: "" });
+      }
+    };
+
+    const handleSave = async () => {
+      if (!selectedPet || !user || !localRecord.title || !localRecord.date) return;
+      
+      try {
+        const petRef = doc(db, "pets", selectedPet.id);
+        const updatedRecords = [...(selectedPet.records || []), localRecord];
+        
+        await updateDoc(petRef, {
+          records: updatedRecords
+        });
+        
+        setShowAddRecord(false);
+        isFormActiveRef.current = false;
+      } catch (error) {
+        console.error("Error adding record:", error);
+        setError("Failed to add record. Please try again.");
       }
     };
 
@@ -312,36 +318,30 @@ const PetManagement = () => {
               <Label>Title *</Label>
               <Input 
                 placeholder="e.g., Annual Checkup, Surgery, etc."
-                value={newRecord.title} 
-                onChange={(e) => {
-                  setNewRecord(prev => ({ ...prev, title: e.target.value }));
-                }} 
+                value={localRecord.title} 
+                onChange={(e) => setLocalRecord(prev => ({ ...prev, title: e.target.value }))} 
               />
             </div>
             <div>
               <Label>Description</Label>
               <Textarea 
                 placeholder="Enter details about the medical record..."
-                value={newRecord.description} 
-                onChange={(e) => {
-                  setNewRecord(prev => ({ ...prev, description: e.target.value }));
-                }} 
+                value={localRecord.description} 
+                onChange={(e) => setLocalRecord(prev => ({ ...prev, description: e.target.value }))} 
               />
             </div>
             <div>
               <Label>Date *</Label>
               <Input 
                 type="date" 
-                value={newRecord.date} 
-                onChange={(e) => {
-                  setNewRecord(prev => ({ ...prev, date: e.target.value }));
-                }} 
+                value={localRecord.date} 
+                onChange={(e) => setLocalRecord(prev => ({ ...prev, date: e.target.value }))} 
               />
             </div>
             <div className="flex gap-2">
               <Button 
-                onClick={handleAddRecord}
-                disabled={!newRecord.title || !newRecord.date}
+                onClick={handleSave}
+                disabled={!localRecord.title || !localRecord.date}
               >
                 Save Record
               </Button>
@@ -356,15 +356,16 @@ const PetManagement = () => {
   };
 
   const AddVaccineDialog = () => {
-    // Initialize form state once when dialog opens
+    const [localVaccine, setLocalVaccine] = useState({ name: "", date: "", nextDue: "" });
+
+    // Initialize form when dialog opens
     useEffect(() => {
-      if (showAddVaccine && !isFormActiveRef.current) {
+      if (showAddVaccine) {
         isFormActiveRef.current = true;
-        // Only initialize if form is empty
-        if (!newVaccine.name && !newVaccine.date && !newVaccine.nextDue) {
-          const today = new Date().toISOString().split('T')[0];
-          setNewVaccine({ name: "", date: today, nextDue: "" });
-        }
+        const today = new Date().toISOString().split('T')[0];
+        setLocalVaccine({ name: "", date: today, nextDue: "" });
+      } else {
+        isFormActiveRef.current = false;
       }
     }, [showAddVaccine]);
 
@@ -372,7 +373,25 @@ const PetManagement = () => {
       if (!open) {
         setShowAddVaccine(false);
         isFormActiveRef.current = false;
-        setNewVaccine({ name: "", date: "", nextDue: "" });
+      }
+    };
+
+    const handleSave = async () => {
+      if (!selectedPet || !user || !localVaccine.name || !localVaccine.date) return;
+      
+      try {
+        const petRef = doc(db, "pets", selectedPet.id);
+        const updatedVaccines = [...(selectedPet.vaccines || []), localVaccine];
+        
+        await updateDoc(petRef, {
+          vaccines: updatedVaccines
+        });
+        
+        setShowAddVaccine(false);
+        isFormActiveRef.current = false;
+      } catch (error) {
+        console.error("Error adding vaccine:", error);
+        setError("Failed to add vaccine. Please try again.");
       }
     };
 
@@ -387,36 +406,30 @@ const PetManagement = () => {
               <Label>Vaccine Name *</Label>
               <Input 
                 placeholder="e.g., Rabies, DHPP, etc."
-                value={newVaccine.name} 
-                onChange={(e) => {
-                  setNewVaccine(prev => ({ ...prev, name: e.target.value }));
-                }} 
+                value={localVaccine.name} 
+                onChange={(e) => setLocalVaccine(prev => ({ ...prev, name: e.target.value }))} 
               />
             </div>
             <div>
               <Label>Date Given *</Label>
               <Input 
                 type="date" 
-                value={newVaccine.date} 
-                onChange={(e) => {
-                  setNewVaccine(prev => ({ ...prev, date: e.target.value }));
-                }} 
+                value={localVaccine.date} 
+                onChange={(e) => setLocalVaccine(prev => ({ ...prev, date: e.target.value }))} 
               />
             </div>
             <div>
               <Label>Next Due Date</Label>
               <Input 
                 type="date" 
-                value={newVaccine.nextDue} 
-                onChange={(e) => {
-                  setNewVaccine(prev => ({ ...prev, nextDue: e.target.value }));
-                }} 
+                value={localVaccine.nextDue} 
+                onChange={(e) => setLocalVaccine(prev => ({ ...prev, nextDue: e.target.value }))} 
               />
             </div>
             <div className="flex gap-2">
               <Button 
-                onClick={handleAddVaccine}
-                disabled={!newVaccine.name || !newVaccine.date}
+                onClick={handleSave}
+                disabled={!localVaccine.name || !localVaccine.date}
               >
                 Save Vaccine
               </Button>
