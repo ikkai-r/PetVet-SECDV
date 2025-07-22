@@ -59,10 +59,7 @@ const PetCard = ({ pet, onEdit }: PetCardProps) => {
       
       <div className="flex gap-2">
         <Button variant="outline" className="flex-1" onClick={() => onEdit(pet)}>
-          Edit Profile
-        </Button>
-        <Button className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90">
-          View Details
+          View Profile
         </Button>
       </div>
     </div>
