@@ -444,14 +444,46 @@ const PetManagement = () => {
   };
 
   const EditProfileDialog = () => {
-    // Initialize form state once when dialog opens
+    const [localEditData, setLocalEditData] = useState({
+      name: "",
+      species: "",
+      breed: "",
+      dateOfBirth: "",
+      weight: "",
+      notes: "",
+    });
+
+    // Initialize form when dialog opens
     useEffect(() => {
-      if (showEditProfile) {
+      if (showEditProfile && selectedPet) {
         isFormActiveRef.current = true;
+        setLocalEditData({
+          name: selectedPet.name,
+          species: selectedPet.species,
+          breed: selectedPet.breed,
+          dateOfBirth: selectedPet.dateOfBirth,
+          weight: selectedPet.weight,
+          notes: selectedPet.notes || "",
+        });
       } else {
         isFormActiveRef.current = false;
       }
-    }, [showEditProfile]);
+    }, [showEditProfile, selectedPet]);
+
+    const handleSave = async () => {
+      if (!selectedPet || !user) return;
+      
+      try {
+        const petRef = doc(db, "pets", selectedPet.id);
+        await updateDoc(petRef, localEditData);
+        
+        setShowEditProfile(false);
+        isFormActiveRef.current = false;
+      } catch (error) {
+        console.error("Error updating pet profile:", error);
+        setError("Failed to update pet profile. Please try again.");
+      }
+    };
 
     return (
       <Dialog open={showEditProfile} onOpenChange={(open) => {
@@ -468,23 +500,15 @@ const PetManagement = () => {
             <div>
               <Label>Name</Label>
               <Input 
-                value={editPetData.name} 
-                onChange={(e) => {
-                  const updatedData = { ...editPetData, name: e.target.value };
-                  setEditPetData(updatedData);
-                  formDataRef.current.editPet = updatedData;
-                }} 
+                value={localEditData.name} 
+                onChange={(e) => setLocalEditData(prev => ({ ...prev, name: e.target.value }))} 
               />
             </div>
             <div>
               <Label>Species</Label>
               <Select 
-                value={editPetData.species} 
-                onValueChange={(value) => {
-                  const updatedData = { ...editPetData, species: value };
-                  setEditPetData(updatedData);
-                  formDataRef.current.editPet = updatedData;
-                }}
+                value={localEditData.species} 
+                onValueChange={(value) => setLocalEditData(prev => ({ ...prev, species: value }))}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -502,52 +526,36 @@ const PetManagement = () => {
             <div>
               <Label>Breed</Label>
               <Input 
-                value={editPetData.breed} 
-                onChange={(e) => {
-                  const updatedData = { ...editPetData, breed: e.target.value };
-                  setEditPetData(updatedData);
-                  formDataRef.current.editPet = updatedData;
-                }} 
+                value={localEditData.breed} 
+                onChange={(e) => setLocalEditData(prev => ({ ...prev, breed: e.target.value }))} 
               />
             </div>
             <div>
               <Label>Date of Birth</Label>
               <Input 
                 type="date" 
-                value={editPetData.dateOfBirth} 
-                onChange={(e) => {
-                  const updatedData = { ...editPetData, dateOfBirth: e.target.value };
-                  setEditPetData(updatedData);
-                  formDataRef.current.editPet = updatedData;
-                }} 
+                value={localEditData.dateOfBirth} 
+                onChange={(e) => setLocalEditData(prev => ({ ...prev, dateOfBirth: e.target.value }))} 
               />
             </div>
             <div>
               <Label>Weight (kg)</Label>
               <Input 
                 placeholder="e.g., 15, 7.5, 2.3"
-                value={editPetData.weight} 
-                onChange={(e) => {
-                  const updatedData = { ...editPetData, weight: e.target.value };
-                  setEditPetData(updatedData);
-                  formDataRef.current.editPet = updatedData;
-                }} 
+                value={localEditData.weight} 
+                onChange={(e) => setLocalEditData(prev => ({ ...prev, weight: e.target.value }))} 
               />
             </div>
             <div>
               <Label>Notes</Label>
               <Textarea 
                 placeholder="Any additional notes about your pet..."
-                value={editPetData.notes} 
-                onChange={(e) => {
-                  const updatedData = { ...editPetData, notes: e.target.value };
-                  setEditPetData(updatedData);
-                  formDataRef.current.editPet = updatedData;
-                }} 
+                value={localEditData.notes} 
+                onChange={(e) => setLocalEditData(prev => ({ ...prev, notes: e.target.value }))} 
               />
             </div>
             <div className="flex gap-2">
-              <Button onClick={handleEditProfile}>
+              <Button onClick={handleSave}>
                 Save Changes
               </Button>
               <Button variant="outline" onClick={() => {
