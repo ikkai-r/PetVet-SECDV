@@ -46,3 +46,21 @@ export interface User {
   displayName?: string;
   photoURL?: string;
 }
+
+export interface Appointment {
+  id?: string; // Optional for new appointments before they are saved
+  petId: string;
+  title: string;
+  date: string; // Assuming 'YYYY-MM-DD' format
+  time: string; // Assuming 'HH:MM' format
+  type: string;
+  vet: Partial<VetClinic>; // 'vet' object might not contain all clinic details
+  vetId: string;
+  notes: string;
+  userId: string;
+  createdAt?: string; // ISO date string
+  petName?: string;
+  vetName?: string;
+  address?: string;
+  status?: string; // e.g., "pending", "confirmed", "cancelled"
+}

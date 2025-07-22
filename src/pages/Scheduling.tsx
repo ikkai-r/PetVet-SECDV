@@ -1,70 +1,129 @@
-import { useState } from "react";
+"use client";
+
+import { useEffect, useState, useCallback } from "react"; // Add useCallback
 import { Plus, Calendar, Clock, Bell, MapPin, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import Navigation from "@/components/Navigation";
+import CalendarMaker from "@/services/calendarmaker";
+
+// Firebase
+import { auth } from "@/lib/firebase"; // Only need auth here
+import { onAuthStateChanged } from "firebase/auth";
+
+// Import your centralized Firestore functions and types
+import {
+  getVetClinics,
+  getUserPets,
+  addAppointment,
+  getUserAppointments, // <--- Import this new function
+} from "@/services/firestore"; // Assuming this is your file for firestore functions
+
+import {
+  VetClinic,
+  Pet,
+  Appointment, // <--- Ensure Appointment type is imported
+} from "@/types"; // Assuming this is your types file
 
 const Scheduling = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showAddAppointment, setShowAddAppointment] = useState(false);
   const [viewMode, setViewMode] = useState("calendar");
-  const [newAppointment, setNewAppointment] = useState({
+  // Use the Appointment type for clarity
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [upcomingReminders, setUpcomingReminders] = useState<any[]>([]);
+  // Use the VetClinic and Pet types for clarity
+  const [vetClinics, setVetClinics] = useState<VetClinic[]>([]);
+  const [userPets, setUserPets] = useState<Pet[]>([]);
+
+  const [newAppointment, setNewAppointment] = useState<Omit<Appointment, 'id' | 'createdAt' | 'userId' | 'status'>>({
     petId: "",
     title: "",
     date: "",
     time: "",
     type: "",
+    vet: { id: "", trade_name: "", address: "" }, // Initialize with structure matching VetClinic
     vetId: "",
     notes: "",
   });
 
-  // Mock data - in real app, this would come from Supabase
-  const appointments = [
-    {
-      id: "1",
-      petName: "Buddy",
-      title: "Annual Check-up",
-      date: "2024-12-15",
-      time: "10:00 AM",
-      type: "checkup",
-      vetName: "Happy Paws Veterinary Clinic",
-      address: "123 Main St, Downtown",
-      status: "confirmed",
-    },
-    {
-      id: "2",
-      petName: "Whiskers",
-      title: "Vaccination",
-      date: "2024-12-20",
-      time: "2:30 PM",
-      type: "vaccine",
-      vetName: "City Animal Hospital",
-      address: "456 Oak Ave, Midtown",
-      status: "pending",
-    },
-    {
-      id: "3",
-      petName: "Buddy",
-      title: "Dental Cleaning",
-      date: "2024-12-25",
-      time: "9:00 AM",
-      type: "dental",
-      vetName: "Happy Paws Veterinary Clinic",
-      address: "123 Main St, Downtown",
-      status: "confirmed",
-    },
-  ];
+  // Function to fetch all necessary data
+  const fetchAllData = useCallback(async (userId: string) => {
+    try {
+      // 1. Fetch Vet Clinics
+      const clinics = await getVetClinics();
+      setVetClinics(clinics);
 
-  const upcomingReminders = [
-    { id: "1", title: "Buddy's Check-up Tomorrow", time: "10:00 AM", type: "appointment" },
-    { id: "2", title: "Whiskers Flea Treatment", time: "Next week", type: "medication" },
-    { id: "3", title: "Refill Buddy's Medication", time: "In 3 days", type: "medication" },
-  ];
+      // 2. Fetch User Pets
+      const petsList = await getUserPets(userId);
+      setUserPets(petsList);
+
+      // 3. Fetch User Appointments directly from 'schedules' collection
+      const fetchedAppointments = await getUserAppointments(userId);
+
+      // Augment appointments with petName, vetName, address for display
+      const augmentedAppointments: Appointment[] = fetchedAppointments.map(
+        (apt) => {
+          const pet = petsList.find((p) => p.id === apt.petId);
+          // Use apt.vet.id if available, otherwise fallback to apt.vetId
+          const clinic = clinics.find((c) => c.id === (apt.vet?.id || apt.vetId)); 
+
+          return {
+            ...apt,
+            petName: pet?.name || "Unknown Pet",
+            vetName: clinic?.trade_name || apt.vet?.trade_name || "Unknown Vet", // Prioritize clinic data
+            address: clinic?.address || apt.vet?.address || "", // Prioritize clinic data
+            status: apt.status || "pending", // Ensure status is set
+          };
+        }
+      );
+      setAppointments(augmentedAppointments);
+
+      // 4. Generate Reminders from Pet Vaccines
+      const reminders: any[] = [];
+      petsList.forEach((pet) => {
+        const petName = pet.name || "Unnamed Pet";
+        if (Array.isArray(pet.vaccines)) {
+          pet.vaccines.forEach((vaccine, index) => {
+            if (vaccine.nextDue) {
+              reminders.push({
+                id: `vax-${pet.id}-${index}`,
+                title: `${petName}'s ${vaccine.name} vaccine due`,
+                // Ensure date format consistency, maybe use new Date() for sorting if needed
+                time: new Date(vaccine.nextDue).toLocaleDateString(),
+                type: "medication",
+              });
+            }
+          });
+        }
+      });
+      setUpcomingReminders(reminders);
+    } catch (err) {
+      console.error("Error fetching all data:", err);
+    }
+  }, []); // Empty dependency array means this function is created once
+
+  // Initial data fetch on component mount and on auth state change
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        fetchAllData(user.uid);
+      } else {
+        // Clear data if user logs out
+        setUserPets([]);
+        setAppointments([]);
+        setUpcomingReminders([]);
+      }
+    });
+
+    return () => unsubscribe(); // Cleanup subscription on unmount
+  }, [fetchAllData]); // Depend on fetchAllData
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -94,18 +153,48 @@ const Scheduling = () => {
     }
   };
 
-  const handleAddAppointment = () => {
-    console.log("Adding appointment:", newAppointment);
-    setShowAddAppointment(false);
-    setNewAppointment({
-      petId: "",
-      title: "",
-      date: "",
-      time: "",
-      type: "",
-      vetId: "",
-      notes: "",
-    });
+const handleAddAppointment = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        console.error("User not authenticated");
+        return;
+      }
+
+      const selectedVet = vetClinics.find((c) => c.id === newAppointment.vetId);
+
+      const appointmentToSave: Omit<Appointment, 'id' | 'createdAt'> = {
+        ...newAppointment,
+        vet: {
+          id: selectedVet?.id || "",
+          trade_name: selectedVet?.trade_name || "",
+          address: selectedVet?.address || "", // Ensure address is always a string
+        },
+        userId: user.uid,
+        status: "pending",
+      };
+
+      await addAppointment(appointmentToSave);
+
+      console.log("Appointment added successfully:", appointmentToSave);
+
+      setShowAddAppointment(false);
+      setNewAppointment({
+        petId: "",
+        title: "",
+        date: "",
+        time: "",
+        type: "",
+        vet: { id: "", trade_name: "", address: "" },
+        vetId: "",
+        notes: "",
+      });
+
+      await fetchAllData(user.uid);
+
+    } catch (error) {
+      console.error("Error adding appointment:", error);
+    }
   };
 
   return (
@@ -114,8 +203,8 @@ const Scheduling = () => {
       <div className="gradient-secondary p-6 rounded-b-3xl">
         <div className="flex items-center justify-between">
           <h1 className="text-white font-bold">Schedule & Reminders</h1>
-          <Button 
-            variant="secondary" 
+          <Button
+            variant="secondary"
             size="sm"
             onClick={() => setShowAddAppointment(true)}
             className="bg-white/20 text-white hover:bg-white/30"
@@ -151,88 +240,65 @@ const Scheduling = () => {
 
       {/* Calendar View */}
       {viewMode === "calendar" && (
-        <div className="p-6 pt-0">
-          <div className="bg-card rounded-2xl p-4 mb-6">
-            <h2 className="font-semibold mb-4">December 2024</h2>
-            <div className="grid grid-cols-7 gap-1 text-center text-sm">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                <div key={day} className="p-2 font-medium text-muted-foreground">
-                  {day}
-                </div>
-              ))}
-              {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => {
-                const hasAppointment = appointments.some(
-                  (apt) => new Date(apt.date).getDate() === day
-                );
-                return (
-                  <div
-                    key={day}
-                    className={`p-2 rounded-lg relative ${
-                      hasAppointment ? "bg-primary/10 text-primary" : "hover:bg-muted"
-                    }`}
-                  >
-                    {day}
-                    {hasAppointment && (
-                      <div className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full"></div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+        <CalendarMaker
+          appointments={appointments}
+          setNewAppointment={setNewAppointment}
+          setShowAddAppointment={setShowAddAppointment}
+        />
       )}
+
 
       {/* Upcoming Appointments */}
       <div className="p-6 pt-0">
         <h2 className="font-semibold mb-4">Upcoming Appointments</h2>
         <div className="space-y-4">
-          {appointments.map((appointment) => (
-            <Card key={appointment.id} className="hover:shadow-medium transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="text-2xl">{getTypeIcon(appointment.type)}</div>
-                    <div>
-                      <h3 className="font-semibold">{appointment.title}</h3>
-                      <p className="text-sm text-muted-foreground">{appointment.petName}</p>
+          {appointments.length > 0 ? (
+            appointments.map((appointment) => (
+              <Card key={appointment.id} className="hover:shadow-medium transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="text-2xl">{getTypeIcon(appointment.type)}</div>
+                      <div>
+                        <h3 className="font-semibold">{appointment.title}</h3>
+                        <p className="text-sm text-muted-foreground">{appointment.petName}</p>
+                      </div>
+                    </div>
+                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status || 'pending')}`}>
+                      {appointment.status || 'pending'}
                     </div>
                   </div>
-                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
-                    {appointment.status}
-                  </div>
-                </div>
 
-                <div className="flex items-center gap-4 mb-3 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    {new Date(appointment.date).toLocaleDateString()}
+                  <div className="flex items-center gap-4 mb-3 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <Calendar className="w-4 h-4" />
+                      {new Date(appointment.date).toLocaleDateString()}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      {appointment.time}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    {appointment.time}
-                  </div>
-                </div>
 
-                <div className="flex items-center gap-2 mb-3 text-sm">
-                  <MapPin className="w-4 h-4 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">{appointment.vetName}</p>
-                    <p className="text-muted-foreground">{appointment.address}</p>
+                  <div className="flex items-center gap-2 mb-3 text-sm">
+                    <MapPin className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">{appointment.vetName}</p>
+                      <p className="text-muted-foreground">{appointment.address}</p>
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    Reschedule
-                  </Button>
-                  <Button size="sm" className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90">
-                    View Details
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="flex-1">
+                      Reschedule
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <p className="text-muted-foreground text-center py-4">No upcoming appointments.</p>
+          )}
         </div>
       </div>
 
@@ -242,20 +308,21 @@ const Scheduling = () => {
         <Card>
           <CardContent className="p-4">
             <div className="space-y-3">
-              {upcomingReminders.map((reminder) => (
-                <div key={reminder.id} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Bell className="w-4 h-4 text-warning" />
-                    <div>
-                      <p className="font-medium">{reminder.title}</p>
-                      <p className="text-sm text-muted-foreground">{reminder.time}</p>
+              {upcomingReminders.length > 0 ? (
+                upcomingReminders.map((reminder) => (
+                  <div key={reminder.id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Bell className="w-4 h-4 text-warning" />
+                      <div>
+                        <p className="font-medium">{reminder.title}</p>
+                        <p className="text-sm text-muted-foreground">{reminder.time}</p>
+                      </div>
                     </div>
                   </div>
-                  <Button variant="ghost" size="sm">
-                    Dismiss
-                  </Button>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-muted-foreground text-center py-4">No upcoming reminders.</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -270,13 +337,24 @@ const Scheduling = () => {
           <div className="space-y-4">
             <div>
               <Label htmlFor="petId">Pet</Label>
-              <Select value={newAppointment.petId} onValueChange={(value) => setNewAppointment({ ...newAppointment, petId: value })}>
+              <Select
+                value={newAppointment.petId}
+                onValueChange={(value) => {
+                  setNewAppointment({
+                    ...newAppointment,
+                    petId: value,
+                  });
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select pet" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">Buddy</SelectItem>
-                  <SelectItem value="2">Whiskers</SelectItem>
+                  {userPets.map((pet) => (
+                    <SelectItem key={pet.id} value={pet.id}>
+                      {pet.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -326,14 +404,26 @@ const Scheduling = () => {
             </div>
             <div>
               <Label htmlFor="vetId">Veterinarian</Label>
-              <Select value={newAppointment.vetId} onValueChange={(value) => setNewAppointment({ ...newAppointment, vetId: value })}>
+              <Select
+                value={newAppointment.vetId}
+                onValueChange={(value) => {
+                  const selected = vetClinics.find((c) => c.id === value);
+                  setNewAppointment({
+                    ...newAppointment,
+                    vetId: value,
+                    vet: selected ? { id: selected.id, trade_name: selected.trade_name, address: selected.address } : { id: "", trade_name: "", address: "" }
+                  });
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select vet" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">Happy Paws Veterinary Clinic</SelectItem>
-                  <SelectItem value="2">City Animal Hospital</SelectItem>
-                  <SelectItem value="3">Furry Friends Vet</SelectItem>
+                  {vetClinics.map((clinic) => (
+                    <SelectItem key={clinic.id} value={clinic.id}>
+                      {clinic.trade_name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

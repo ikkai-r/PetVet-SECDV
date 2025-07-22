@@ -10,10 +10,11 @@ import {
   where, 
   orderBy, 
   limit,
+  serverTimestamp,
   GeoPoint
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { VetClinic, Pet, MedicalRecord, VaccinationRecord } from '@/types';
+import { VetClinic, Pet, MedicalRecord, VaccinationRecord, Appointment } from '@/types';
 
 // Vet Clinics
 export const getVetClinics = async (): Promise<VetClinic[]> => {
@@ -155,6 +156,35 @@ export const addVaccinationRecord = async (record: Omit<VaccinationRecord, 'id'>
   return docRef.id;
 };
 
+// Appointments
+export const addAppointment = async (
+  appointmentData: Omit<Appointment, 'id' | 'createdAt'>
+): Promise<string> => {
+  const docRef = await addDoc(collection(db, 'schedules'), {
+    ...appointmentData,
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+};
+
+export const getUserAppointments = async (
+  userId: string
+): Promise<Appointment[]> => {
+  const q = query(
+    collection(db, 'schedules'),
+    where('userId', '==', userId),
+    orderBy('date', 'asc'), // Order by date
+    orderBy('time', 'asc') // Then by time
+  );
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(
+    (doc) =>
+      ({
+        id: doc.id,
+        ...doc.data(),
+      } as Appointment)
+  );
+};
 // Utility functions
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
   const R = 6371; // Radius of the Earth in kilometers
@@ -172,3 +202,4 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
 const deg2rad = (deg: number): number => {
   return deg * (Math.PI/180);
 };
+
