@@ -7,16 +7,38 @@ import {
   GoogleAuthProvider,
   signInWithPopup
 } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db} from '@/lib/firebase';
 import { User } from '@/types';
+import { doc, setDoc } from "firebase/firestore";
+
+// export const signUp = async (email: string, password: string): Promise<User> => {
+//   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+//   return {
+//     uid: userCredential.user.uid,
+//     email: userCredential.user.email!,
+//     displayName: userCredential.user.displayName || undefined,
+//     photoURL: userCredential.user.photoURL || undefined,
+//   };
+// };
 
 export const signUp = async (email: string, password: string): Promise<User> => {
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  const user = userCredential.user;
+
+  await setDoc(doc(db, "users", user.uid), {
+    email: user.email,
+    displayName: user.displayName || email.split("@")[0],
+    photoURL: user.photoURL || "",
+    createdAt: new Date().toISOString(),
+    phoneNumber: "",
+    role: "user", // Default role
+  });
+
   return {
-    uid: userCredential.user.uid,
-    email: userCredential.user.email!,
-    displayName: userCredential.user.displayName || undefined,
-    photoURL: userCredential.user.photoURL || undefined,
+    uid: user.uid,
+    email: user.email!,
+    displayName: user.displayName || undefined,
+    photoURL: user.photoURL || undefined,
   };
 };
 

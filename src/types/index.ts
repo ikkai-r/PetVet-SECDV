@@ -40,11 +40,20 @@ export interface VaccinationRecord {
   next_due: string;
 }
 
+// export interface AccountStat {
+//   label: string;
+//   value: number;
+//   color: string;
+// }
+
 export interface User {
   uid: string;
   email: string;
   displayName?: string;
   photoURL?: string;
+  phoneNumber?: string;
+  role: string;
+  // AccountStats?: AccountStat[];
 }
 
 export interface Appointment {
