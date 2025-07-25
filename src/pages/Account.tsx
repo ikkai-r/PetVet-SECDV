@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef} from "react";
 import { User, Settings, Bell, Shield, HelpCircle, LogOut, Edit, Camera, Mail, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,16 +9,23 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Navigation from "@/components/Navigation";
+import { getAuth, onAuthStateChanged, updateProfile } from "firebase/auth";
+import { db, auth, storage } from "@/lib/firebase"; // Import storage
+import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, getDoc} from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage"; // Import storage functions
+import { logout } from '@/services/auth';
 
 const Account = () => {
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [user, setUser] = useState({
-    name: "Sarah Johnson",
-    email: "sarah.johnson@email.com",
-    phone: "+1 (555) 123-4567",
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    phone: "",
     avatar: "",
-    joinDate: "March 2024",
   });
 
   const [settings, setSettings] = useState({
@@ -34,12 +41,14 @@ const Account = () => {
     },
   });
 
-  const accountStats = [
-    { label: "Pets", value: "2", color: "bg-primary" },
-    { label: "Appointments", value: "12", color: "bg-accent" },
-    { label: "Reminders", value: "5", color: "bg-secondary" },
-    { label: "Vets Saved", value: "3", color: "bg-success" },
+  const defaultAccountStats = [
+    { label: "Pets", value: "0", color: "bg-primary" },
+    { label: "Appointments", value: "0", color: "bg-accent" },
+    { label: "Reminders", value: "0", color: "bg-secondary" },
+    { label: "Vets Saved", value: "0", color: "bg-success" },
   ];
+
+  const [accountStats, setAccountStats] = useState(defaultAccountStats);
 
   const menuItems = [
     { icon: Bell, label: "Notifications", action: () => setShowSettings(true) },
@@ -48,9 +57,105 @@ const Account = () => {
     { icon: Settings, label: "App Settings", action: () => setShowSettings(true) },
   ];
 
-  const handleSaveProfile = () => {
-    console.log("Saving profile:", user);
-    setShowEditProfile(false);
+  useEffect(() => {
+  const auth = getAuth();
+
+  const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    if (currentUser) {
+      try {
+        const userRef = doc(db, "users", currentUser.uid);
+        const docSnap = await getDoc(userRef);
+
+        const firestoreData = docSnap.exists() ? docSnap.data() : {};
+
+        setUser({
+          id: currentUser.uid,
+          name:
+            firestoreData.name ||
+            currentUser.displayName ||
+            currentUser.email?.split("@")[0] ||
+            "Anonymous",
+          email: currentUser.email,
+          phone: firestoreData.phone || currentUser.phoneNumber || "",
+          avatar: firestoreData.avatar || currentUser.photoURL || "",
+          joinDate: new Date(currentUser.metadata.creationTime).toLocaleDateString(),
+          role: firestoreData.role || "user",
+        });
+
+        console.log("Loaded user from Firestore:", firestoreData);
+      } catch (error) {
+        console.error("Error fetching Firestore user data:", error);
+      }
+    } else {
+      setUser(null);
+    }
+  });
+
+  return () => unsubscribe();
+}, []);
+
+  useEffect(() => {
+    if (showEditProfile && user) {
+      setFormData({
+        name: user.name,
+        phone: user.phone,
+        avatar: user.avatar,
+      });
+    }
+  }, [showEditProfile, user]);
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      const currentUser = getAuth().currentUser;
+      let photoURL = formData.avatar;
+
+      if (selectedImageFile) {
+        const storageRef = ref(storage, `avatars/${user.id}`);
+        await uploadBytes(storageRef, selectedImageFile);
+        photoURL = await getDownloadURL(storageRef);
+      }
+
+      if (currentUser) {
+        await updateProfile(currentUser, {
+          displayName: formData.name,
+          photoURL: photoURL,
+        });
+      }
+
+      const userRef = doc(db, "users", user.id);
+      await updateDoc(userRef, {
+        name: formData.name,
+        phone: formData.phone,
+        avatar: photoURL,
+      });
+
+      setUser(prev => ({
+        ...prev!,
+        name: formData.name,
+        phone: formData.phone,
+        avatar: photoURL,
+      }));
+
+      console.log("Profile saved successfully.");
+      setShowEditProfile(false);
+    } catch (error) {
+      console.error("Error saving profile:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImageFile(file);
+
+      const previewURL = URL.createObjectURL(file);
+      setFormData(prev => ({ ...prev, avatar: previewURL }));
+    }
   };
 
   const handleSaveSettings = () => {
@@ -58,11 +163,15 @@ const Account = () => {
     setShowSettings(false);
   };
 
+  if (!user) {
+    return <div>Loading user info...</div>;
+  }
+
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <div className="gradient-primary p-6 rounded-b-3xl">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-5">
           <div className="relative">
             <Avatar className="w-20 h-20">
               <AvatarImage src={user.avatar} alt={user.name} />
@@ -70,18 +179,19 @@ const Account = () => {
                 {user.name.split(' ').map(n => n[0]).join('')}
               </AvatarFallback>
             </Avatar>
-            <Button
+            {/* <Button
               size="icon"
               variant="secondary"
               className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full"
               onClick={() => setShowEditProfile(true)}
             >
               <Camera className="w-4 h-4" />
-            </Button>
+            </Button> */}
           </div>
           <div className="flex-1">
             <h1 className="text-white font-bold text-xl">{user.name}</h1>
             <p className="text-white/90 text-sm">{user.email}</p>
+            <p className="text-white/70 text-xs">{"+" + user.phone || "No phone number provided"}</p>
             <p className="text-white/70 text-xs mt-1">Member since {user.joinDate}</p>
           </div>
         </div>
@@ -162,7 +272,7 @@ const Account = () => {
 
       {/* Sign Out */}
       <div className="px-6 pb-6">
-        <Button variant="destructive" className="w-full">
+        <Button variant="destructive" className="w-full" onClick={logout}>
           <LogOut className="w-4 h-4 mr-2" />
           Sign Out
         </Button>
@@ -177,25 +287,35 @@ const Account = () => {
           <div className="space-y-4">
             <div className="text-center">
               <Avatar className="w-24 h-24 mx-auto mb-4">
-                <AvatarImage src={user.avatar} alt={user.name} />
+                <AvatarImage src={formData.avatar} alt={formData.name} />
                 <AvatarFallback className="text-xl">
-                  {user.name.split(' ').map(n => n[0]).join('')}
+                  {formData.name.split(' ').map(n => n[0]).join('')}
                 </AvatarFallback>
               </Avatar>
-              <Button variant="outline" size="sm">
+              {/* Hidden File Input */}
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                style={{ display: "none" }}
+                onChange={handleFileChange}
+              />
+              <Button variant="outline" size="sm"   
+                onClick={() => fileInputRef.current?.click()}
+                disabled={loading}>
                 <Camera className="w-4 h-4 mr-2" />
-                Change Photo
+                {loading ? "Uploading..." : "Change Photo"}
               </Button>
             </div>
             <div>
               <Label htmlFor="name">Full Name</Label>
               <Input
                 id="name"
-                value={user.name}
-                onChange={(e) => setUser({ ...user, name: e.target.value })}
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
             </div>
-            <div>
+            {/* <div>
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -203,22 +323,22 @@ const Account = () => {
                 value={user.email}
                 onChange={(e) => setUser({ ...user, email: e.target.value })}
               />
-            </div>
+            </div> */}
             <div>
               <Label htmlFor="phone">Phone Number</Label>
               <Input
                 id="phone"
                 type="tel"
-                value={user.phone}
-                onChange={(e) => setUser({ ...user, phone: e.target.value })}
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               />
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setShowEditProfile(false)} className="flex-1">
                 Cancel
               </Button>
-              <Button onClick={handleSaveProfile} className="flex-1">
-                Save Changes
+              <Button onClick={handleSaveProfile} className="flex-1" disabled={loading}>
+                 {loading ? "Saving..." : "Save Changes"}
               </Button>
             </div>
           </div>
