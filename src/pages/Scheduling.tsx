@@ -21,6 +21,7 @@ import {
   getVetClinics,
   getUserPets,
   addAppointment,
+  updateAppointment,
   getUserAppointments, // <--- Import this new function
 } from "@/services/firestore"; // Assuming this is your file for firestore functions
 
@@ -40,6 +41,7 @@ const Scheduling = () => {
   // Use the VetClinic and Pet types for clarity
   const [vetClinics, setVetClinics] = useState<VetClinic[]>([]);
   const [userPets, setUserPets] = useState<Pet[]>([]);
+   const [loading, setLoading] = useState(false);
 
   const [newAppointment, setNewAppointment] = useState<Omit<Appointment, 'id' | 'createdAt' | 'userId' | 'status'>>({
     petId: "",
@@ -47,10 +49,24 @@ const Scheduling = () => {
     date: "",
     time: "",
     type: "",
-    vet: { id: "", trade_name: "", address: "" }, // Initialize with structure matching VetClinic
+    vet: { id: "", trade_name: "", business_address: "" }, // Initialize with structure matching VetClinic
     vetId: "",
     notes: "",
   });
+
+  // const [editAppointment, setEditAppointment] = useState<Omit<Appointment, 'id' | 'createdAt' | 'userId' | 'status'>>({
+  //   petId: "",
+  //   title: "",
+  //   date: "",
+  //   time: "",
+  //   type: "",
+  //   vet: { id: "", trade_name: "", business_address: "" }, // Initialize with structure matching VetClinic
+  //   vetId: "",
+  //   notes: "",
+  // });
+
+  const [showEditAppointment, setShowEditAppointment] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
 
   // Function to fetch all necessary data
   const fetchAllData = useCallback(async (userId: string) => {
@@ -77,7 +93,7 @@ const Scheduling = () => {
             ...apt,
             petName: pet?.name || "Unknown Pet",
             vetName: clinic?.trade_name || apt.vet?.trade_name || "Unknown Vet", // Prioritize clinic data
-            address: clinic?.address || apt.vet?.address || "", // Prioritize clinic data
+            address: clinic?.business_address || apt.vet?.business_address || "", // Prioritize clinic data
             status: apt.status || "pending", // Ensure status is set
           };
         }
@@ -153,7 +169,29 @@ const Scheduling = () => {
     }
   };
 
-const handleAddAppointment = async () => {
+
+  const handleUpdateAppointment = async (id: string, data: Partial<Appointment>) => {
+    try {
+      if (!id || !data) {
+        console.error("Invalid appointment data for update");
+        return;
+      }
+      
+      setLoading(true);
+      await updateAppointment(id, data);
+     
+      setShowEditAppointment(false);
+      setEditingAppointment(null);
+      const user = auth.currentUser;
+      if (user) await fetchAllData(user.uid);
+    } catch (error) {
+      console.error("Error updating appointment:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleAddAppointment = async () => {
     try {
       const user = auth.currentUser;
       if (!user) {
@@ -168,7 +206,7 @@ const handleAddAppointment = async () => {
         vet: {
           id: selectedVet?.id || "",
           trade_name: selectedVet?.trade_name || "",
-          address: selectedVet?.address || "", // Ensure address is always a string
+          business_address: selectedVet?.business_address || "", // Ensure address is always a string
         },
         userId: user.uid,
         status: "pending",
@@ -185,7 +223,7 @@ const handleAddAppointment = async () => {
         date: "",
         time: "",
         type: "",
-        vet: { id: "", trade_name: "", address: "" },
+        vet: { id: "", trade_name: "", business_address: "" },
         vetId: "",
         notes: "",
       });
@@ -289,7 +327,14 @@ const handleAddAppointment = async () => {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1">
+                    <Button variant="outline" 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => {
+                              setEditingAppointment(appointment);
+                              setShowEditAppointment(true);
+                            }}
+                      >
                       Reschedule
                     </Button>
                   </div>
@@ -411,7 +456,7 @@ const handleAddAppointment = async () => {
                   setNewAppointment({
                     ...newAppointment,
                     vetId: value,
-                    vet: selected ? { id: selected.id, trade_name: selected.trade_name, address: selected.address } : { id: "", trade_name: "", address: "" }
+                    vet: selected ? { id: selected.id, trade_name: selected.trade_name, business_address: selected.business_address } : { id: "", trade_name: "", business_address: "" }
                   });
                 }}
               >
@@ -445,6 +490,161 @@ const handleAddAppointment = async () => {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+
+      {/* Edit Appointment Dialog */}
+      {/* can honestly be merged but fuck it */}
+      <Dialog open={showEditAppointment} onOpenChange={setShowEditAppointment}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Appointment</DialogTitle>
+          </DialogHeader>
+          {editingAppointment && (
+            <div className="space-y-4">
+              {/* Pet Select */}
+              <div>
+                <Label htmlFor="edit-petId">Pet</Label>
+                <Select
+                  value={editingAppointment.petId}
+                  onValueChange={(value) =>
+                    setEditingAppointment({ ...editingAppointment, petId: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select pet" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {userPets.map((pet) => (
+                      <SelectItem key={pet.id} value={pet.id}>
+                        {pet.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* Title */}
+              <div>
+                <Label htmlFor="edit-title">Appointment Title</Label>
+                <Input
+                  id="edit-title"
+                  value={editingAppointment.title}
+                  onChange={(e) =>
+                    setEditingAppointment({ ...editingAppointment, title: e.target.value })
+                  }
+                />
+              </div>
+              {/* Type */}
+              <div>
+                <Label htmlFor="edit-type">Type</Label>
+                <Select
+                  value={editingAppointment.type}
+                  onValueChange={(value) =>
+                    setEditingAppointment({ ...editingAppointment, type: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="checkup">Check-up</SelectItem>
+                    <SelectItem value="vaccine">Vaccination</SelectItem>
+                    <SelectItem value="dental">Dental</SelectItem>
+                    <SelectItem value="surgery">Surgery</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* Date & Time */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-date">Date</Label>
+                  <Input
+                    id="edit-date"
+                    type="date"
+                    value={editingAppointment.date}
+                    onChange={(e) =>
+                      setEditingAppointment({ ...editingAppointment, date: e.target.value })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-time">Time</Label>
+                  <Input
+                    id="edit-time"
+                    type="time"
+                    value={editingAppointment.time}
+                    onChange={(e) =>
+                      setEditingAppointment({ ...editingAppointment, time: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              {/* Vet */}
+              <div>
+                <Label htmlFor="edit-vetId">Veterinarian</Label>
+                <Select
+                  value={editingAppointment.vetId}
+                  onValueChange={(value) => {
+                    const selected = vetClinics.find((c) => c.id === value);
+                    setEditingAppointment({
+                      ...editingAppointment,
+                      vetId: value,
+                      vet: selected
+                        ? {
+                            id: selected.id,
+                            trade_name: selected.trade_name,
+                            business_address: selected.business_address,
+                          }
+                        : { id: "", trade_name: "", business_address: "" },
+                    });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select vet" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vetClinics.map((clinic) => (
+                      <SelectItem key={clinic.id} value={clinic.id}>
+                        {clinic.trade_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* Notes */}
+              <div>
+                <Label htmlFor="edit-notes">Notes</Label>
+                <Textarea
+                  id="edit-notes"
+                  value={editingAppointment.notes}
+                  onChange={(e) =>
+                    setEditingAppointment({ ...editingAppointment, notes: e.target.value })
+                  }
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowEditAppointment(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                     if (!editingAppointment) return;
+                     handleUpdateAppointment(editingAppointment.id, editingAppointment);
+                  }}
+                  disabled={loading}
+                  className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                    {loading ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

@@ -167,6 +167,16 @@ export const addAppointment = async (
   return docRef.id;
 };
 
+export const updateAppointment = async (
+  id: string,
+  data: Partial<Appointment>
+): Promise<void> => {
+  const appointmentRef = doc(db, 'schedules', id);
+  // Remove fields you don't want to update
+  const { createdAt, ...updateData } = data;
+  await updateDoc(appointmentRef, updateData);
+};
+
 export const getUserAppointments = async (
   userId: string
 ): Promise<Appointment[]> => {
