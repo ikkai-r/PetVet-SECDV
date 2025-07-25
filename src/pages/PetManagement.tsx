@@ -380,13 +380,15 @@ const PetManagement = () => {
 
   // iffy here 5215
   useEffect(() => {
-    if (activeModal == "editRecord" && currentRecordToEdit) {
+    if (activeModal === "editRecord" && currentRecordToEdit) {
       isFormActiveRef.current = true;
       setLocalRecordForm(currentRecordToEdit);
     } else {
       isFormActiveRef.current = false;
+      setLocalRecordForm({ id: "", title: "", description: "", date: "" });
     }
   }, [activeModal, currentRecordToEdit]);
+
 
   const handleDialogCloseRecordForm = (open: boolean) => {
     if (!open) {
@@ -402,14 +404,19 @@ const PetManagement = () => {
     setLoading(true);
     try {
       const petRef = doc(db, "pets", selectedPet.id);
-      const updatedRecords = (selectedPet.records || []).map(rec =>
-        rec.id === localRecordForm.id ? localRecordForm : rec
-      );
+      const updatedRecords = (selectedPet.records || []).map((rec, idx) => {
+        const recId = rec.id ?? idx.toString(); // fallback
+        if (recId === localRecordForm.id) {
+          return { ...localRecordForm };
+        }
+        return rec;
+      });
+
       await updateDoc(petRef, { records: updatedRecords });
       setSelectedPet(prev => prev ? { ...prev, records: updatedRecords } : prev);
-      // setShowEditRecord(false);
-      setActiveModal(null);
       setCurrentRecordToEdit(null);
+      setActiveModal(null);
+
     } catch (error) {
       setError("Failed to update record. Please try again.");
     } finally {
@@ -468,13 +475,15 @@ const PetManagement = () => {
   const [localVaccineForm, setLocalVaccineForm] = useState(currentVaccineToEdit || { id: "", name: "", date: "", nextDue: "" });
 
   useEffect(() => {
-    if (activeModal == "editVaccine" && currentVaccineToEdit) {
+    if (activeModal === "editVaccine" && currentVaccineToEdit) {
       isFormActiveRef.current = true;
       setLocalVaccineForm(currentVaccineToEdit);
     } else {
       isFormActiveRef.current = false;
+      setLocalVaccineForm({ id: "", name: "", date: "", nextDue: "" }); 
     }
   }, [activeModal, currentVaccineToEdit]);
+
 
   const handleDialogCloseVaccineForm = (open: boolean) => {
     if (!open) {
@@ -485,25 +494,34 @@ const PetManagement = () => {
   };
 
   const handleSaveVaccineForm = async () => {
-    if (!selectedPet || !user || !localVaccineForm.name || !localVaccineForm.date || !localVaccineForm.id) return;
+    console.log("[Save handler] localVaccineForm:", localVaccineForm);
+
+    if (!selectedPet || !user || !localVaccineForm.name || !localVaccineForm.date || !localVaccineForm.id) {
+      console.warn("Missing fields; aborting update.");
+      return;
+    }
 
     setLoading(true);
     try {
       const petRef = doc(db, "pets", selectedPet.id);
-      const updatedVaccines = (selectedPet.vaccines || []).map(vac =>
-        vac.id === localVaccineForm.id ? localVaccineForm : vac
-      );
+      const updatedVaccines = (selectedPet.vaccines || []).map((vac, idx) => {
+        const vacId = vac.id ?? idx.toString(); 
+        if (vacId === localVaccineForm.id) {
+          return { ...localVaccineForm };
+        }
+        return vac;
+      });
       await updateDoc(petRef, { vaccines: updatedVaccines });
       setSelectedPet(prev => prev ? { ...prev, vaccines: updatedVaccines } : prev);
-      // setShowEditVaccine(false);
-      setActiveModal(null);
       setCurrentVaccineToEdit(null);
+      setActiveModal(null);
     } catch (error) {
       setError("Failed to update vaccine. Please try again.");
     } finally {
       setLoading(false);
     }
   };
+
 
 
   const [localEditDataForm, setLocalEditDataForm] = useState({
@@ -631,8 +649,8 @@ const PetManagement = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        setCurrentVaccineToEdit(vaccine);
-                        setActiveModal("editVaccine");
+                        setCurrentVaccineToEdit({ ...vaccine, id: vaccine.id || idx.toString() });
+                        setTimeout(() => setActiveModal("editVaccine"), 0);
                       }}
                     >
                       <Edit className="w-4 h-4" />
@@ -667,9 +685,10 @@ const PetManagement = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        setCurrentRecordToEdit(record);
-                        setActiveModal("editRecord")
+                        setCurrentRecordToEdit({ ...record, id: record.id || idx.toString() });
+                        setTimeout(() => setActiveModal("editRecord"), 0); 
                       }}
+
                     >
                       <Edit className="w-4 h-4" />
                     </Button>
@@ -909,7 +928,16 @@ const PetManagement = () => {
       </Dialog>
 
       {/* Edit Vaccine Dialog */}
-      <Dialog open={activeModal === "editVaccine"} onOpenChange={(open) => { if (!open) setActiveModal(null); }}>
+      <Dialog
+        open={activeModal === "editVaccine"}
+        onOpenChange={(open) => {
+          if (!open) {
+            setActiveModal(null);
+            setCurrentVaccineToEdit(null); 
+          }
+        }}
+      >
+
         <DialogContent className="max-w-md animate-in fade-in zoom-in-95 slide-in-from-top-10">
           <DialogHeader>
             <DialogTitle>Edit Vaccination</DialogTitle>
@@ -919,7 +947,7 @@ const PetManagement = () => {
               <Label>Vaccine Name *</Label>
               <Input
                 placeholder="e.g., Rabies, DHPP, etc."
-                value={localVaccineForm.name}
+                value={localVaccineForm.name || ""}
                 onChange={(e) => setLocalVaccineForm(prev => ({ ...prev, name: e.target.value }))}
               />
             </div>
@@ -927,7 +955,7 @@ const PetManagement = () => {
               <Label>Date Given *</Label>
               <Input
                 type="date"
-                value={localVaccineForm.date}
+                value={localVaccineForm.date || ""}
                 onChange={(e) => setLocalVaccineForm(prev => ({ ...prev, date: e.target.value }))}
               />
             </div>
@@ -942,7 +970,7 @@ const PetManagement = () => {
             <div className="flex gap-2">
               <Button
                 onClick={handleSaveVaccineForm}
-                disabled={loading || !localVaccineForm.name || !localVaccineForm.date}
+                disabled={!localVaccineForm.name || !localVaccineForm.date}
               >
                 Save Changes
               </Button>
