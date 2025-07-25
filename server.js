@@ -13,4 +13,16 @@ app.get('/api/gemini-token', (req, res) => {
   res.json({ token });
 });
 
+app.get('/api/cloudinary-params', (req, res) => {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;
+
+  if (!cloudName || !uploadPreset) {
+    return res.status(500).json({ error: 'Missing Cloudinary config' });
+  }
+
+  res.json({ cloudName, uploadPreset });
+});
+
+
 app.listen(3001, () => console.log('Backend running at http://localhost:3001'));
