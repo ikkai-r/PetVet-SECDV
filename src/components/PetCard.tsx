@@ -1,4 +1,4 @@
-import { Heart, Calendar, AlertCircle } from "lucide-react";
+import { Heart, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Pet {
@@ -15,9 +15,12 @@ interface Pet {
 interface PetCardProps {
   pet: Pet;
   onEdit: (pet: Pet) => void;
+  showProfileButton?: boolean; // Optional
 }
 
-const PetCard = ({ pet, onEdit }: PetCardProps) => {
+const PetCard = ({ pet, onEdit, showProfileButton }: PetCardProps) => {
+  const shouldShowButton = showProfileButton ?? true; // Default to true
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "healthy":
@@ -43,25 +46,29 @@ const PetCard = ({ pet, onEdit }: PetCardProps) => {
         </div>
         <div className="flex-1">
           <h3 className="font-semibold text-lg">{pet.name}</h3>
-          <p className="text-muted-foreground text-sm">{pet.breed} • {pet.age}</p>
+          <p className="text-muted-foreground text-sm">
+            {pet.breed} • {pet.age}
+          </p>
         </div>
         <div className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(pet.status)}`}>
           {pet.status}
         </div>
       </div>
-      
+
       {pet.nextVaccine && (
         <div className="flex items-center gap-2 mb-3 text-sm text-muted-foreground">
           <Calendar className="w-4 h-4" />
           <span>Next vaccine: {pet.nextVaccine}</span>
         </div>
       )}
-      
-      <div className="flex gap-2">
-        <Button variant="outline" className="flex-1" onClick={() => onEdit(pet)}>
-          View Profile
-        </Button>
-      </div>
+
+      {shouldShowButton && (
+        <div className="flex gap-2">
+          <Button variant="outline" className="flex-1" onClick={() => onEdit(pet)}>
+            View Profile
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
