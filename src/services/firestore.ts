@@ -177,6 +177,13 @@ export const updateAppointment = async (
   await updateDoc(appointmentRef, updateData);
 };
 
+export const deleteAppointment = async (
+  id: string,
+): Promise<void> => {
+  const appointmentRef = doc(db, 'schedules', id);
+  await deleteDoc(appointmentRef);
+};
+
 export const getUserAppointments = async (
   userId: string
 ): Promise<Appointment[]> => {

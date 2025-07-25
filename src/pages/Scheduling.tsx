@@ -22,6 +22,7 @@ import {
   getUserPets,
   addAppointment,
   updateAppointment,
+  deleteAppointment,
   getUserAppointments, // <--- Import this new function
 } from "@/services/firestore"; // Assuming this is your file for firestore functions
 
@@ -165,6 +166,21 @@ const Scheduling = () => {
     }
   };
 
+  const handleDeleteAppointment = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this appointment?")) return;
+    try {
+      setLoading(true);
+      await deleteAppointment(id);
+      setShowEditAppointment(false);
+      setEditingAppointment(null);
+      const user = auth.currentUser;
+      if (user) await fetchAllData(user.uid);
+    } catch (error) {
+      console.error("Error deleting appointment:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleUpdateAppointment = async (id: string, data: Partial<Appointment>) => {
     try {
@@ -621,12 +637,23 @@ const Scheduling = () => {
                 />
               </div>
               <div className="flex gap-2">
-                <Button
+                {/* <Button
                   variant="outline"
                   onClick={() => setShowEditAppointment(false)}
                   className="flex-1"
                 >
                   Cancel
+                </Button> */}
+                <Button
+                    variant="destructive"
+                    onClick={() => {
+                      if (!editingAppointment) return;
+                      handleDeleteAppointment(editingAppointment.id);
+                    }}
+                    disabled={loading}
+                    className="flex-1"
+                  >
+                    {loading ? "Deleting..." : "Delete"}
                 </Button>
                 <Button
                   onClick={() => {
