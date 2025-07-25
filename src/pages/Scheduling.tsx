@@ -54,17 +54,6 @@ const Scheduling = () => {
     notes: "",
   });
 
-  // const [editAppointment, setEditAppointment] = useState<Omit<Appointment, 'id' | 'createdAt' | 'userId' | 'status'>>({
-  //   petId: "",
-  //   title: "",
-  //   date: "",
-  //   time: "",
-  //   type: "",
-  //   vet: { id: "", trade_name: "", business_address: "" }, // Initialize with structure matching VetClinic
-  //   vetId: "",
-  //   notes: "",
-  // });
-
   const [showEditAppointment, setShowEditAppointment] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
 
@@ -82,35 +71,42 @@ const Scheduling = () => {
       // 3. Fetch User Appointments directly from 'schedules' collection
       const fetchedAppointments = await getUserAppointments(userId);
 
-      // Augment appointments with petName, vetName, address for display
-      const augmentedAppointments: Appointment[] = fetchedAppointments.map(
-        (apt) => {
-          const pet = petsList.find((p) => p.id === apt.petId);
-          // Use apt.vet.id if available, otherwise fallback to apt.vetId
-          const clinic = clinics.find((c) => c.id === (apt.vet?.id || apt.vetId)); 
+      // Helper: check if date is today or in the future
+      const isTodayOrFuture = (dateStr: string) => {
+        if (!dateStr) return false;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const date = new Date(dateStr);
+        date.setHours(0, 0, 0, 0);
+        return date >= today;
+      };
 
+      // Augment and filter appointments
+      const augmentedAppointments: Appointment[] = fetchedAppointments
+        .filter((apt) => isTodayOrFuture(apt.date))
+        .map((apt) => {
+          const pet = petsList.find((p) => p.id === apt.petId);
+          const clinic = clinics.find((c) => c.id === (apt.vet?.id || apt.vetId));
           return {
             ...apt,
             petName: pet?.name || "Unknown Pet",
-            vetName: clinic?.trade_name || apt.vet?.trade_name || "Unknown Vet", // Prioritize clinic data
-            address: clinic?.business_address || apt.vet?.business_address || "", // Prioritize clinic data
-            status: apt.status || "pending", // Ensure status is set
+            vetName: clinic?.trade_name || apt.vet?.trade_name || "Unknown Vet",
+            address: clinic?.business_address || apt.vet?.business_address || "",
+            status: apt.status || "pending",
           };
-        }
-      );
+        });
       setAppointments(augmentedAppointments);
 
-      // 4. Generate Reminders from Pet Vaccines
+      // 4. Generate Reminders from Pet Vaccines (only future/now)
       const reminders: any[] = [];
       petsList.forEach((pet) => {
         const petName = pet.name || "Unnamed Pet";
         if (Array.isArray(pet.vaccines)) {
           pet.vaccines.forEach((vaccine, index) => {
-            if (vaccine.nextDue) {
+            if (vaccine.nextDue && isTodayOrFuture(vaccine.nextDue)) {
               reminders.push({
                 id: `vax-${pet.id}-${index}`,
                 title: `${petName}'s ${vaccine.name} vaccine due`,
-                // Ensure date format consistency, maybe use new Date() for sorting if needed
                 time: new Date(vaccine.nextDue).toLocaleDateString(),
                 type: "medication",
               });
