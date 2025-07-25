@@ -33,6 +33,20 @@ const calculateAge = (dateOfBirth: string): string => {
   return years === 1 ? '1 year' : `${years} years`;
 };
 
+const fetchCloudinaryConfig = async () => {
+  try {
+    const res = await fetch('http://localhost:3001/api/cloudinary-params');
+    if (!res.ok) {
+      throw new Error(`Failed to fetch Cloudinary config: ${res.status} ${res.statusText}`);
+    }
+    const { cloudName, uploadPreset } = await res.json();
+    return { cloudName, uploadPreset };
+  } catch (error) {
+    console.error("Error fetching Cloudinary config:", error);
+    throw new Error("Failed to get Cloudinary configuration from server");
+  }
+};
+
 interface Pet {
   id: string;
   name: string;
@@ -149,12 +163,32 @@ const PetManagement = () => {
     }
   }, [pets]);
 
-  const uploadImage = async (file: File) => {
-    if (!user) throw new Error("User not authenticated for image upload.");
-    const storageRef = ref(storage, `pet_photos/${user.uid}/${file.name}_${Date.now()}`);
-    await uploadBytes(storageRef, file);
-    return getDownloadURL(storageRef);
+  const uploadImage = async (file: File): Promise<string> => {
+    try {
+      const { cloudName, uploadPreset } = await fetchCloudinaryConfig();
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", uploadPreset);
+
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Image upload failed: ${res.status} ${res.statusText} - ${errorText}`);
+      }
+
+      const data = await res.json();
+      return data.secure_url;
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      throw error;
+    }
   };
+
 
   const handleAddPet = async () => {
     if (!user) return;
