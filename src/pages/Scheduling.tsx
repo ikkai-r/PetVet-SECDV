@@ -250,7 +250,7 @@ const Scheduling = () => {
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
-      <div className="gradient-secondary p-6 rounded-b-3xl">
+      <div className="gradient-primary p-6 rounded-b-3xl">
         <div className="flex items-center justify-between">
           <h1 className="text-white font-bold">Schedule & Reminders</h1>
           <Button
