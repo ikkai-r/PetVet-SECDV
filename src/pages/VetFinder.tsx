@@ -30,6 +30,8 @@ const getDistanceFromLatLon = (lat1, lon1, lat2, lon2) => {
   return R * c; // distance in km
 };
 
+import { Heart } from "lucide-react";
+
 const VetFinder = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("all");
@@ -38,8 +40,33 @@ const VetFinder = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [selectedClinic, setSelectedClinic] = useState(null);
+  const [showSortOptions, setShowSortOptions] = useState(false);
+  const [sortOption, setSortOption] = useState("distance");
+  const [favorites, setFavorites] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("favoriteVets");
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+
+  const toggleFavorite = (vetId) => {
+    setFavorites((prev) => {
+      let updated;
+      if (prev.includes(vetId)) {
+        updated = prev.filter((id) => id !== vetId);
+      } else {
+        updated = [...prev, vetId];
+      }
+      if (typeof window !== "undefined") {
+        localStorage.setItem("favoriteVets", JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
   const filters = [
     { id: "all", label: "All" },
+    { id: "favorites", label: "Favorites" },
     { id: "NCR", label: "NCR" },
     { id: "CAR", label: "CAR" },
     { id: "I", label: "Region I" },
@@ -131,14 +158,21 @@ const VetFinder = () => {
 
       const matchesRegion =
         selectedFilter === "all" ||
-        vet.region.toLowerCase().includes(selectedFilter.toLowerCase());
+        (selectedFilter === "favorites"
+          ? favorites.includes(vet.id)
+          : vet.region.toLowerCase().includes(selectedFilter.toLowerCase()));
 
       return matchesSearch && matchesRegion;
     })
     .sort((a, b) => {
-      if (a.distance === null) return 1;
-      if (b.distance === null) return -1;
-      return a.distance - b.distance;
+      if (sortOption === "distance") {
+        if (a.distance === null) return 1;
+        if (b.distance === null) return -1;
+        return a.distance - b.distance;
+      } else if (sortOption === "stars") {
+        return b.rating - a.rating;
+      }
+      return 0;
     });
 
   return (
@@ -188,10 +222,46 @@ const VetFinder = () => {
           <h2 className="font-semibold">
             {loading ? "Loading..." : `${filteredVets.length} Vets Found`}
           </h2>
-          <Button variant="ghost" size="sm">
-            <Filter className="w-4 h-4 mr-2" />
-            Sort
-          </Button>
+          <div className="relative inline-block text-left">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowSortOptions(!showSortOptions)}
+              aria-haspopup="true"
+              aria-expanded={showSortOptions}
+            >
+              <Filter className="w-4 h-4 mr-2" />
+              Sort
+            </Button>
+            {showSortOptions && (
+              <div className="origin-top-right absolute right-0 mt-2 w-40 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
+                <div className="py-1">
+                  <button
+                    className={`block px-4 py-2 text-sm w-full text-left ${
+                      sortOption === "distance" ? "bg-gray-100" : ""
+                    }`}
+                    onClick={() => {
+                      setSortOption("distance");
+                      setShowSortOptions(false);
+                    }}
+                  >
+                    Distance (km)
+                  </button>
+                  <button
+                    className={`block px-4 py-2 text-sm w-full text-left ${
+                      sortOption === "stars" ? "bg-gray-100" : ""
+                    }`}
+                    onClick={() => {
+                      setSortOption("stars");
+                      setShowSortOptions(false);
+                    }}
+                  >
+                    Stars
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {!loading &&
@@ -203,8 +273,21 @@ const VetFinder = () => {
                     <h3 className="font-semibold">{vet.name}</h3>
                     <p className="text-sm text-muted-foreground">{vet.address}</p>
                   </div>
-                  <div className="px-2 py-1 rounded-full text-xs font-medium bg-success text-success-foreground">
-                    Open
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => toggleFavorite(vet.id)}
+                      aria-label={favorites.includes(vet.id) ? "Unfavorite" : "Favorite"}
+                      className="focus:outline-none"
+                    >
+                      <Heart
+                        className={`w-6 h-6 ${
+                          favorites.includes(vet.id) ? "text-red-500 fill-current" : "text-gray-400"
+                        }`}
+                      />
+                    </button>
+                    <div className="px-2 py-1 rounded-full text-xs font-medium bg-success text-success-foreground">
+                      Open
+                    </div>
                   </div>
                 </div>
 
