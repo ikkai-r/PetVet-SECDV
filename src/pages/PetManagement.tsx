@@ -14,6 +14,7 @@ import { db, auth, storage } from "@/lib/firebase"; // Import storage
 import { collection, query, where, onSnapshot, addDoc, updateDoc, doc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"; // Import storage functions
 import { User } from "firebase/auth";
+import { deletePet } from "@/services/firestore"; 
 
 const calculateAge = (dateOfBirth: string): string => {
   const today = new Date();
@@ -602,6 +603,22 @@ const PetManagement = () => {
     }
   };
 
+   const handleDeletePet = async () => {
+    if (!selectedPet || !user) return;
+    if (!window.confirm("Are you sure you want to delete this pet? This action cannot be undone.")) return;
+      setLoading(true);
+    try {
+      await deletePet(selectedPet.id);
+      setActiveModal(null);
+      setSelectedPet(null);
+    } catch (error) {
+      setError("Failed to delete pet. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -709,18 +726,23 @@ const PetManagement = () => {
           </div>
 
           <div className="flex flex-col gap-3">
-            <Button onClick={() => openEditProfile(pet!)}>
-              <Edit className="w-4 h-4 mr-2" />
-              Edit Profile
-            </Button>
             <Button variant="secondary" onClick={() => setActiveModal("addRecord")}>
-              <FileText className="w-4 h-4 mr-2" />
               Add Record
             </Button>
             <Button variant="outline" onClick={() => setActiveModal("addVaccine")}>
-              <Calendar className="w-4 h-4 mr-2" />
               Add Vaccine
             </Button>
+            <Button onClick={() => openEditProfile(pet!)}>
+              Edit Profile
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeletePet}
+              disabled={loading}
+            >
+              {loading ? "Deleting..." : "Delete Pet"}
+            </Button>
+
           </div>
         </div>
       </DialogContent>

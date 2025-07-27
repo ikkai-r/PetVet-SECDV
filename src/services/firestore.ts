@@ -115,6 +115,33 @@ export const updatePet = async (petId: string, updates: Partial<Pet>): Promise<v
 };
 
 export const deletePet = async (petId: string): Promise<void> => {
+    // Delete all medical records for this pet
+  const medQuery = query(
+    collection(db, 'medical_records'),
+    where('pet_id', '==', petId)
+  );
+  const medSnapshot = await getDocs(medQuery);
+  const medDeletes = medSnapshot.docs.map(docSnap => deleteDoc(doc(db, 'medical_records', docSnap.id)));
+  await Promise.all(medDeletes);
+
+  // Delete all vaccination records for this pet
+  const vaxQuery = query(
+    collection(db, 'vaccination_records'),
+    where('pet_id', '==', petId)
+  );
+  const vaxSnapshot = await getDocs(vaxQuery);
+  const vaxDeletes = vaxSnapshot.docs.map(docSnap => deleteDoc(doc(db, 'vaccination_records', docSnap.id)));
+  await Promise.all(vaxDeletes);
+
+  // Delete all appointments for this pet
+  const aptQuery = query(
+    collection(db, 'schedules'),
+    where('petId', '==', petId)
+  );
+  const aptSnapshot = await getDocs(aptQuery);
+  const aptDeletes = aptSnapshot.docs.map(docSnap => deleteDoc(doc(db, 'schedules', docSnap.id)));
+  await Promise.all(aptDeletes);
+
   await deleteDoc(doc(db, 'pets', petId));
 };
 

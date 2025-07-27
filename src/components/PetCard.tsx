@@ -18,57 +18,23 @@ interface PetCardProps {
   showProfileButton?: boolean; // Optional
 }
 
-const PetCard = ({ pet, onEdit, showProfileButton }: PetCardProps) => {
-  const shouldShowButton = showProfileButton ?? true; // Default to true
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "healthy":
-        return "bg-success text-success-foreground";
-      case "warning":
-        return "bg-warning text-warning-foreground";
-      case "overdue":
-        return "bg-destructive text-destructive-foreground";
-      default:
-        return "bg-muted text-muted-foreground";
-    }
-  };
-
+const PetCard = ({ pet, onEdit }: PetCardProps) => {
   return (
-    <div className="pet-card">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="w-16 h-16 rounded-full bg-gradient-soft flex items-center justify-center overflow-hidden">
-          {pet.photo ? (
-            <img src={pet.photo} alt={pet.name} className="w-full h-full object-cover" />
-          ) : (
-            <Heart className="w-8 h-8 text-primary" />
-          )}
-        </div>
-        <div className="flex-1">
-          <h3 className="font-semibold text-lg">{pet.name}</h3>
-          <p className="text-muted-foreground text-sm">
-            {pet.breed} • {pet.age}
-          </p>
-        </div>
-        <div className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(pet.status)}`}>
-          {pet.status}
-        </div>
+    <div
+      className="min-w-[250px] max-w-[250px] bg-white shadow-md rounded-xl overflow-hidden flex-shrink-0 cursor-pointer transition-transform transform hover:scale-105 hover:shadow-lg"
+      onClick={() => onEdit(pet)}
+    >
+      <div className="w-full h-52 bg-gray-100 flex items-center justify-center overflow-hidden">
+        {pet.photo ? (
+          <img src={pet.photo} alt={pet.name} className="w-full h-full object-cover" />
+        ) : (
+          <Heart className="w-10 h-10 text-primary" />
+        )}
       </div>
-
-      {pet.nextVaccine && (
-        <div className="flex items-center gap-2 mb-3 text-sm text-muted-foreground">
-          <Calendar className="w-4 h-4" />
-          <span>Next vaccine: {pet.nextVaccine}</span>
-        </div>
-      )}
-
-      {shouldShowButton && (
-        <div className="flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={() => onEdit(pet)}>
-            View Profile
-          </Button>
-        </div>
-      )}
+      <div className="p-4">
+        <h3 className="font-semibold text-lg text-center">{pet.name}</h3>
+        <p className="text-sm text-muted-foreground text-center">{pet.age}</p>
+      </div>
     </div>
   );
 };
