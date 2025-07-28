@@ -39,6 +39,7 @@ export const signUp = async (email: string, password: string): Promise<User> => 
     email: user.email!,
     displayName: user.displayName || undefined,
     photoURL: user.photoURL || undefined,
+    role: "user", // Default role
   };
 };
 
@@ -49,17 +50,30 @@ export const signIn = async (email: string, password: string): Promise<User> => 
     email: userCredential.user.email!,
     displayName: userCredential.user.displayName || undefined,
     photoURL: userCredential.user.photoURL || undefined,
+    role: "user", // Default role for existing users
   };
 };
 
 export const signInWithGoogle = async (): Promise<User> => {
   const provider = new GoogleAuthProvider();
   const userCredential = await signInWithPopup(auth, provider);
+  
+  // Create user document for Google sign-in users if it doesn't exist
+  await setDoc(doc(db, "users", userCredential.user.uid), {
+    email: userCredential.user.email,
+    displayName: userCredential.user.displayName || userCredential.user.email?.split("@")[0],
+    photoURL: userCredential.user.photoURL || "",
+    createdAt: new Date().toISOString(),
+    phoneNumber: "",
+    role: "user",
+  }, { merge: true });
+
   return {
     uid: userCredential.user.uid,
     email: userCredential.user.email!,
     displayName: userCredential.user.displayName || undefined,
     photoURL: userCredential.user.photoURL || undefined,
+    role: "user",
   };
 };
 
@@ -77,6 +91,7 @@ export const getCurrentUser = (): Promise<User | null> => {
           email: user.email!,
           displayName: user.displayName || undefined,
           photoURL: user.photoURL || undefined,
+          role: "user", // Default role
         });
       } else {
         resolve(null);
@@ -93,6 +108,7 @@ export const onAuthStateChange = (callback: (user: User | null) => void) => {
         email: firebaseUser.email!,
         displayName: firebaseUser.displayName || undefined,
         photoURL: firebaseUser.photoURL || undefined,
+        role: "user", // Default role
       });
     } else {
       callback(null);

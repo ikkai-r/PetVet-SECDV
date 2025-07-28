@@ -1,0 +1,62 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can only access their own user document
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Prevent users from modifying their own role
+      allow update: if request.auth != null && 
+                       request.auth.uid == userId && 
+                       !('role' in request.resource.data) ||
+                       request.resource.data.role == resource.data.role;
+    }
+    
+    // Users can only access their own pets
+    match /pets/{petId} {
+      allow read, write: if request.auth != null && 
+                            request.auth.uid == resource.data.owner_id;
+      allow create: if request.auth != null && 
+                       request.auth.uid == request.resource.data.owner_id;
+    }
+    
+    // Users can only access medical records for their own pets
+    match /medical_records/{recordId} {
+      allow read, write: if request.auth != null && 
+                            exists(/databases/$(database)/documents/pets/$(resource.data.pet_id)) &&
+                            get(/databases/$(database)/documents/pets/$(resource.data.pet_id)).data.owner_id == request.auth.uid;
+      allow create: if request.auth != null && 
+                       exists(/databases/$(database)/documents/pets/$(request.resource.data.pet_id)) &&
+                       get(/databases/$(database)/documents/pets/$(request.resource.data.pet_id)).data.owner_id == request.auth.uid;
+    }
+    
+    // Users can only access vaccination records for their own pets
+    match /vaccination_records/{recordId} {
+      allow read, write: if request.auth != null && 
+                            exists(/databases/$(database)/documents/pets/$(resource.data.pet_id)) &&
+                            get(/databases/$(database)/documents/pets/$(resource.data.pet_id)).data.owner_id == request.auth.uid;
+      allow create: if request.auth != null && 
+                       exists(/databases/$(database)/documents/pets/$(request.resource.data.pet_id)) &&
+                       get(/databases/$(database)/documents/pets/$(request.resource.data.pet_id)).data.owner_id == request.auth.uid;
+    }
+    
+    // Users can only access their own appointments
+    match /schedules/{appointmentId} {
+      allow read, write: if request.auth != null && 
+                            request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+                       request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Vet clinics are read-only for all authenticated users
+    match /vet_clinics/{clinicId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Only admins should be able to modify clinics
+    }
+    
+    // Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

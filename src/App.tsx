@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AuthGuard } from "@/components/AuthGuard";
+import { SecurityProvider } from "@/components/SecurityProvider";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import VetFinder from "./pages/VetFinder";
@@ -18,23 +19,25 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AuthGuard>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/vet-finder" element={<VetFinder />} />
-              <Route path="/pets" element={<PetManagement />} />
-              <Route path="/schedule" element={<Scheduling />} />
-              <Route path="/dr-purr" element={<DrPurr />} />
-              <Route path="/account" element={<Account />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AuthGuard>
-        </BrowserRouter>
-      </TooltipProvider>
+      <SecurityProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AuthGuard>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/vet-finder" element={<VetFinder />} />
+                <Route path="/pets" element={<PetManagement />} />
+                <Route path="/schedule" element={<Scheduling />} />
+                <Route path="/dr-purr" element={<DrPurr />} />
+                <Route path="/account" element={<Account />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </AuthGuard>
+          </BrowserRouter>
+        </TooltipProvider>
+      </SecurityProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
