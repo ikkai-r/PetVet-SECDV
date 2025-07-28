@@ -41,15 +41,6 @@ const Account = () => {
     },
   });
 
-  const defaultAccountStats = [
-    { label: "Pets", value: "0", color: "bg-primary" },
-    { label: "Appointments", value: "0", color: "bg-accent" },
-    { label: "Reminders", value: "0", color: "bg-secondary" },
-    { label: "Vets Saved", value: "0", color: "bg-success" },
-  ];
-
-  const [accountStats, setAccountStats] = useState(defaultAccountStats);
-
   const menuItems = [
     { icon: Bell, label: "Notifications", action: () => setShowSettings(true) },
     { icon: Shield, label: "Privacy & Security", action: () => setShowSettings(true) },
@@ -197,24 +188,10 @@ const Account = () => {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="p-6">
-        <div className="grid grid-cols-4 gap-3">
-          {accountStats.map((stat) => (
-            <Card key={stat.label} className="text-center">
-              <CardContent className="p-3">
-                <div className={`w-8 h-8 ${stat.color} rounded-full flex items-center justify-center mx-auto mb-2`}>
-                  <span className="text-white text-sm font-bold">{stat.value}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">{stat.label}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
 
       {/* Account Actions */}
       <div className="px-6">
+        <br></br>
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Account</CardTitle>

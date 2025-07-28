@@ -127,16 +127,13 @@ useEffect(() => {
       {/* Upcoming Reminders */}
       <div className="p-6">
         <h2 className="font-semibold mb-4">Upcoming Reminders</h2>
-        {reminders.length > 0 ? (
+        {reminders.filter(r => new Date(r.date).getTime() > Date.now()).length > 0 ? (
           <Card>
             <CardContent className="p-4">
               <div className="space-y-3">
                 {[...reminders]
-                  .sort((a, b) => {
-                    const dateA = new Date(a.date);
-                    const dateB = new Date(b.date);
-                    return dateA.getTime() - dateB.getTime();
-                  })
+                  .filter((reminder) => new Date(reminder.date).getTime() > Date.now())
+                  .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
                   .map((reminder) => (
                     <div key={reminder.id} className="flex items-center justify-between">
                       <div>
@@ -167,8 +164,8 @@ useEffect(() => {
         ) : (
           <p className="text-sm text-muted-foreground">No upcoming reminders found.</p>
         )}
-
       </div>
+
 
       <Navigation />
     </div>

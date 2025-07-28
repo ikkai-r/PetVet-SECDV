@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Send, Bot, User, Heart, AlertCircle, Camera, Settings } from "lucide-react";
+import { Send, Bot, User, Heart, AlertCircle, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -305,9 +305,6 @@ const DrPurr = () => {
       {/* Chat Input */}
       <div className="fixed bottom-16 left-0 right-0 p-4 bg-background border-t">
         <div className="flex items-center gap-2 max-w-md mx-auto">
-          <Button variant="outline" size="icon" className="shrink-0">
-            <Camera className="w-4 h-4" />
-          </Button>
           <div className="flex-1 relative">
             <Input
               value={message}
