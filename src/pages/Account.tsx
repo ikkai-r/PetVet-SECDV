@@ -257,7 +257,7 @@ const Account = () => {
 
       {/* Edit Profile Dialog */}
       <Dialog open={showEditProfile} onOpenChange={setShowEditProfile}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-4xl max-w-xs rounded-lg sm:rounded-2xl">
           <DialogHeader>
             <DialogTitle>Edit Profile</DialogTitle>
           </DialogHeader>

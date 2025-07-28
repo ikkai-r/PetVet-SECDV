@@ -428,7 +428,7 @@ const Scheduling = () => {
 
       {/* Add Appointment Dialog */}
       <Dialog open={showAddAppointment} onOpenChange={setShowAddAppointment}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-4xl max-w-xs rounded-lg sm:rounded-2xl">
           <DialogHeader>
             <DialogTitle>Add New Appointment</DialogTitle>
           </DialogHeader>
