@@ -93,11 +93,11 @@ useEffect(() => {
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
-      <div className="gradient-soft p-6 rounded-b-3xl">
+      <div className="gradient-primary p-6 rounded-b-3xl">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-foreground font-bold">{greeting}</h1>
-            <p className="text-muted-foreground">How are your furry friends today?</p>
+            <h1 className="text-white font-bold">{greeting}</h1>
+            <p className="text-white">How are your furry friends today?</p>
           </div>
           <Button variant="ghost" size="icon" className="relative">
             <Bell className="w-5 h-5" />

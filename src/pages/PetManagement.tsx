@@ -805,7 +805,7 @@ const PetManagement = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <div className="gradient-accent p-6 rounded-b-3xl">
+      <div className="gradient-primary p-6 rounded-b-3xl">
         <div className="flex items-center justify-between">
           <h1 className="text-white font-bold">My Pets</h1>
           <Button
@@ -1268,7 +1268,6 @@ const PetManagement = () => {
           </div>
         </DialogContent>
       </Dialog>
-
       <Navigation />
     </div>
   );

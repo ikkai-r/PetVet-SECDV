@@ -158,7 +158,7 @@ const DrPurr = () => {
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
-      <div className="gradient-accent p-6 rounded-b-3xl">
+      <div className="gradient-primary p-6 rounded-b-3xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
@@ -222,9 +222,9 @@ const DrPurr = () => {
       </div>
 
       {/* Quick Questions */}
-      <div className="p-6 pb-0">
+      {/* <div className="p-6 pb-0">
         <h2 className="font-semibold mb-3">Quick Questions</h2>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 overflow-x-auto">
           {quickQuestions.map((question, index) => (
             <Button
               key={index}
@@ -237,7 +237,7 @@ const DrPurr = () => {
             </Button>
           ))}
         </div>
-      </div>
+      </div> */}
 
       {/* Chat Messages */}
       <div className="flex-1 p-6 pb-0">
