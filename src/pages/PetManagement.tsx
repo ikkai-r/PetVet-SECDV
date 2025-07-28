@@ -1042,7 +1042,7 @@ const PetManagement = () => {
             <div>
               <Label>Pet Photo</Label>
               <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
                   {localEditDataForm.photo ? (
                     <img src={localEditDataForm.photo} alt="Pet" className="w-full h-full object-cover rounded-full" />
                   ) : (
@@ -1145,7 +1145,7 @@ const PetManagement = () => {
             <div>
               <Label>Pet Photo</Label>
               <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
                   {newPet.photo ? (
                     <img src={newPet.photo} alt="Pet Preview" className="w-full h-full object-cover rounded-full" />
                   ) : (
