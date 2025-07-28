@@ -1074,6 +1074,8 @@ const PetManagement = () => {
             <div>
               <Label>Weight (kg)</Label>
               <Input
+                  type="number"
+                  step="0.1"
                 placeholder="e.g., 15, 7.5, 2.3"
                 value={localEditDataForm.weight}
                 onChange={(e) => setLocalEditDataForm(prev => ({ ...prev, weight: e.target.value }))}
@@ -1176,6 +1178,8 @@ const PetManagement = () => {
             <div>
               <Label>Weight (kg)</Label>
               <Input
+                  type="number"
+                  step="0.1"
                 placeholder="e.g., 15, 7.5, 2.3"
                 value={newPet.weight}
                 onChange={(e) => setNewPet({ ...newPet, weight: e.target.value })}
