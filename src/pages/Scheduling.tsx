@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react"; // Add useCallback
+import { useEffect, useState, useCallback } from "react";
 import { Plus, Calendar, Clock, Bell, MapPin, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import Navigation from "@/components/Navigation";
 import CalendarMaker from "@/services/calendarmaker";
 
 // Firebase
-import { auth } from "@/lib/firebase"; // Only need auth here
+import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
 // Import your centralized Firestore functions and types
@@ -23,56 +23,42 @@ import {
   addAppointment,
   updateAppointment,
   deleteAppointment,
-  getUserAppointments, // <--- Import this new function
-} from "@/services/firestore"; // Assuming this is your file for firestore functions
+  getUserAppointments,
+} from "@/services/firestore";
 
 import {
   VetClinic,
   Pet,
-  Appointment, // <--- Ensure Appointment type is imported
-} from "@/types"; // Assuming this is your types file
+  Appointment,
+} from "@/types";
 
 const Scheduling = () => {
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [showAddAppointment, setShowAddAppointment] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [viewMode, setViewMode] = useState("calendar");
-  // Use the Appointment type for clarity
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [upcomingReminders, setUpcomingReminders] = useState<any[]>([]);
-  // Use the VetClinic and Pet types for clarity
   const [vetClinics, setVetClinics] = useState<VetClinic[]>([]);
   const [userPets, setUserPets] = useState<Pet[]>([]);
-   const [loading, setLoading] = useState(false);
-
+  const [loading, setLoading] = useState(false);
+  const [showAddAppointment, setShowAddAppointment] = useState(false);
   const [newAppointment, setNewAppointment] = useState<Omit<Appointment, 'id' | 'createdAt' | 'userId' | 'status'>>({
-    petId: "",
-    title: "",
-    date: "",
-    time: "",
-    type: "",
-    vet: { id: "", trade_name: "", business_address: "" }, // Initialize with structure matching VetClinic
-    vetId: "",
-    notes: "",
+    petId: "", title: "", date: "", time: "", type: "",
+    vet: { id: "", trade_name: "", business_address: "" },
+    vetId: "", notes: ""
   });
-
   const [showEditAppointment, setShowEditAppointment] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
 
-  // Function to fetch all necessary data
   const fetchAllData = useCallback(async (userId: string) => {
     try {
-      // 1. Fetch Vet Clinics
       const clinics = await getVetClinics();
       setVetClinics(clinics);
 
-      // 2. Fetch User Pets
       const petsList = await getUserPets(userId);
       setUserPets(petsList);
 
-      // 3. Fetch User Appointments directly from 'schedules' collection
       const fetchedAppointments = await getUserAppointments(userId);
 
-      // Helper: check if date is today or in the future
       const isTodayOrFuture = (dateStr: string) => {
         if (!dateStr) return false;
         const today = new Date();
@@ -82,7 +68,6 @@ const Scheduling = () => {
         return date >= today;
       };
 
-      // Augment and filter appointments
       const augmentedAppointments: Appointment[] = fetchedAppointments
         .filter((apt) => isTodayOrFuture(apt.date))
         .map((apt) => {
@@ -96,9 +81,9 @@ const Scheduling = () => {
             status: apt.status || "pending",
           };
         });
+
       setAppointments(augmentedAppointments);
 
-      // 4. Generate Reminders from Pet Vaccines (only future/now)
       const reminders: any[] = [];
       petsList.forEach((pet) => {
         const petName = pet.name || "Unnamed Pet";
@@ -119,24 +104,20 @@ const Scheduling = () => {
     } catch (err) {
       console.error("Error fetching all data:", err);
     }
-  }, []); // Empty dependency array means this function is created once
+  }, []);
 
-  // Initial data fetch on component mount and on auth state change
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        fetchAllData(user.uid);
-      } else {
-        // Clear data if user logs out
+      if (user) fetchAllData(user.uid);
+      else {
         setUserPets([]);
         setAppointments([]);
         setUpcomingReminders([]);
       }
     });
 
-    return () => unsubscribe(); // Cleanup subscription on unmount
-  }, [fetchAllData]); // Depend on fetchAllData
-
+    return () => unsubscribe();
+  }, [fetchAllData]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -165,6 +146,17 @@ const Scheduling = () => {
         return "📅";
     }
   };
+
+  const selectedDayAppointments = selectedDate
+    ? appointments.filter((apt) => {
+        const aptDate = new Date(apt.date);
+        return (
+          aptDate.getFullYear() === selectedDate.getFullYear() &&
+          aptDate.getMonth() === selectedDate.getMonth() &&
+          aptDate.getDate() === selectedDate.getDate()
+        );
+      })
+    : [];
 
   const handleDeleteAppointment = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this appointment?")) return;
@@ -201,7 +193,7 @@ const Scheduling = () => {
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   const handleAddAppointment = async () => {
     try {
@@ -218,7 +210,7 @@ const Scheduling = () => {
         vet: {
           id: selectedVet?.id || "",
           trade_name: selectedVet?.trade_name || "",
-          business_address: selectedVet?.business_address || "", // Ensure address is always a string
+          business_address: selectedVet?.business_address || "",
         },
         userId: user.uid,
         status: "pending",
@@ -253,15 +245,6 @@ const Scheduling = () => {
       <div className="gradient-primary p-6 rounded-b-3xl">
         <div className="flex items-center justify-between">
           <h1 className="text-white font-bold">Schedule & Reminders</h1>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setShowAddAppointment(true)}
-            className="bg-white/20 text-white hover:bg-white/30"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add
-          </Button>
         </div>
         <p className="text-white/90 mt-2">Never miss an appointment</p>
       </div>
@@ -292,15 +275,73 @@ const Scheduling = () => {
       {viewMode === "calendar" && (
         <CalendarMaker
           appointments={appointments}
-          setNewAppointment={setNewAppointment}
-          setShowAddAppointment={setShowAddAppointment}
+          setSelectedDate={setSelectedDate}
+          selectedDate={selectedDate}
         />
       )}
 
+      {/* Selected Date Section */}
+      {selectedDate && (
+        <div className="p-6 pt-4">
+          <h2 className="font-semibold mb-4">
+            Appointments on {selectedDate.toLocaleDateString()}
+          </h2>
+          {selectedDayAppointments.length > 0 ? (
+            <div className="space-y-4">
+              {selectedDayAppointments.map((appointment) => (
+                <Card key={appointment.id}>
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="text-2xl">{getTypeIcon(appointment.type)}</div>
+                        <div>
+                          <h3 className="font-semibold">{appointment.title}</h3>
+                          <p className="text-sm text-muted-foreground">{appointment.petName}</p>
+                        </div>
+                      </div>
+                      <div className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status || 'pending')}`}>
+                        {appointment.status || 'pending'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 mb-3 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-4 h-4" />
+                        {appointment.time}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <MapPin className="w-4 h-4" />
+                        {appointment.vetName}
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => {
+                      setEditingAppointment(appointment);
+                      setShowEditAppointment(true);
+                    }}>
+                      Reschedule
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground">No appointments on this day.</p>
+          )}
+        </div>
+      )}
 
       {/* Upcoming Appointments */}
       <div className="p-6 pt-0">
-        <h2 className="font-semibold mb-4">Upcoming Appointments</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold">Upcoming Appointments</h2>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setShowAddAppointment(true)}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add
+          </Button>
+        </div>
         <div className="space-y-4">
           {appointments.length > 0 ? (
             appointments.map((appointment) => (
@@ -505,9 +546,7 @@ const Scheduling = () => {
         </DialogContent>
       </Dialog>
 
-
       {/* Edit Appointment Dialog */}
-      {/* can honestly be merged but fuck it */}
       <Dialog open={showEditAppointment} onOpenChange={setShowEditAppointment}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -637,13 +676,6 @@ const Scheduling = () => {
                 />
               </div>
               <div className="flex gap-2">
-                {/* <Button
-                  variant="outline"
-                  onClick={() => setShowEditAppointment(false)}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button> */}
                 <Button
                     variant="destructive"
                     onClick={() => {

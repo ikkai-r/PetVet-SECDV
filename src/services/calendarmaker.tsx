@@ -7,17 +7,16 @@ type Appointment = {
 
 type CalendarProps = {
   appointments: Appointment[];
-  setNewAppointment: React.Dispatch<React.SetStateAction<Partial<Appointment>>>;
-  setShowAddAppointment: React.Dispatch<React.SetStateAction<boolean>>;
+  setSelectedDate: (date: Date) => void;
+  selectedDate: Date | null;
 };
 
 const CalendarMaker: React.FC<CalendarProps> = ({
   appointments,
-  setNewAppointment,
-  setShowAddAppointment,
+  setSelectedDate,
+  selectedDate,
 }) => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth(); // 0-indexed
@@ -80,14 +79,7 @@ const CalendarMaker: React.FC<CalendarProps> = ({
             return (
               <div
                 key={day}
-                onClick={() => {
-                  setSelectedDate(dateObj);
-                  setNewAppointment((prev) => ({
-                    ...prev,
-                    date: dateObj.toISOString().substring(0, 10),
-                  }));
-                  setShowAddAppointment(true);
-                }}
+                onClick={() => setSelectedDate(dateObj)}
                 className={`p-2 rounded-lg relative cursor-pointer transition-colors ${
                   isSelected
                     ? "bg-primary text-white"
