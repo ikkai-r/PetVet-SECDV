@@ -11,8 +11,6 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
-
-// Serve frontend static files
 app.use(express.static(path.join(__dirname, 'dist')));
 
 // API routes
@@ -31,7 +29,6 @@ app.get('/api/cloudinary-params', (req, res) => {
   res.json({ cloudName, uploadPreset });
 });
 
-// Catch-all for frontend routes (React Router)
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
