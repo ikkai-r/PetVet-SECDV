@@ -9,6 +9,24 @@ import { Link } from "react-router-dom";
 import { db, auth } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 
+const calculateAge = (dateOfBirth: string): string => {
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let years = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        years--;
+    }
+
+    if (years === 0) {
+        const months = Math.floor((today.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
+        return months === 1 ? '1 month' : `${months} months`;
+    }
+
+    return years === 1 ? '1 year' : `${years} years`;
+};
+
 const Home = () => {
   const [pets, setPets] = useState<any[]>([]);
   const [reminders, setReminders] = useState<any[]>([]);
@@ -37,7 +55,17 @@ useEffect(() => {
       setGreeting("Good evening!");
     }
     const unsubscribePets = onSnapshot(petsQuery, (snapshot) => {
-      const petsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const petsData = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          const dateOfBirth = data.dateOfBirth || '';
+          const age = dateOfBirth ? calculateAge(dateOfBirth) : '0 years';
+
+          return {
+              id: doc.id,
+              ...doc.data(),
+              age
+          }
+      });
       setPets(petsData);
 
       const map: Record<string, any> = {};
