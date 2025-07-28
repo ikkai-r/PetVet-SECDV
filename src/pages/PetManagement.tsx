@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Plus, Edit, Camera, Heart, Calendar, FileText, Weight, Trash2 } from "lucide-react"; // Added Trash2 icon
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import Navigation from "@/components/Navigation";
 import PetCard from "@/components/PetCard";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -883,11 +885,14 @@ const PetManagement = () => {
             </div>
             <div>
               <Label>Date *</Label>
-              <Input
-                type="date"
-                value={localRecord.date}
-                max={new Date().toISOString().split("T")[0]}
-                onChange={(e) => setLocalRecord(prev => ({ ...prev, date: e.target.value }))}
+              <DatePicker
+                date={localRecord.date ? new Date(localRecord.date + 'T00:00:00') : undefined}
+                onDateChange={(date) => setLocalRecord(prev => ({ 
+                  ...prev, 
+                  date: date ? format(date, 'yyyy-MM-dd') : "" 
+                }))}
+                placeholder="Select date"
+                maxDate={new Date()}
               />
             </div>
             <div className="flex gap-2">
@@ -934,13 +939,14 @@ const PetManagement = () => {
             </div>
             <div>
               <Label>Date *</Label>
-              <Input
-                type="date"
-                value={localRecordForm.date}
-                max={new Date().toISOString().split("T")[0]}
-                onChange={(e) =>
-                  setLocalRecordForm((prev) => ({ ...prev, date: e.target.value }))
-                }
+              <DatePicker
+                date={localRecordForm.date ? new Date(localRecordForm.date + 'T00:00:00') : undefined}
+                onDateChange={(date) => setLocalRecordForm(prev => ({ 
+                  ...prev, 
+                  date: date ? format(date, 'yyyy-MM-dd') : "" 
+                }))}
+                placeholder="Select date"
+                maxDate={new Date()}
               />
             </div>
             <div className="flex gap-2">
@@ -976,20 +982,26 @@ const PetManagement = () => {
             </div>
             <div>
               <Label>Date Given *</Label>
-              <Input
-                type="date"
-                value={localVaccine.date}
-                max={new Date().toISOString().split("T")[0]}
-                onChange={(e) => setLocalVaccine(prev => ({ ...prev, date: e.target.value }))}
+              <DatePicker
+                date={localVaccine.date ? new Date(localVaccine.date + 'T00:00:00') : undefined}
+                onDateChange={(date) => setLocalVaccine(prev => ({ 
+                  ...prev, 
+                  date: date ? format(date, 'yyyy-MM-dd') : "" 
+                }))}
+                placeholder="Select date given"
+                maxDate={new Date()}
               />
             </div>
             <div>
               <Label>Next Due Date</Label>
-              <Input
-                type="date"
-                value={localVaccine.nextDue}
-                min={localVaccine.date || ""}
-                onChange={(e) => setLocalVaccine(prev => ({ ...prev, nextDue: e.target.value }))}
+              <DatePicker
+                date={localVaccine.nextDue ? new Date(localVaccine.nextDue + 'T00:00:00') : undefined}
+                onDateChange={(date) => setLocalVaccine(prev => ({ 
+                  ...prev, 
+                  nextDue: date ? format(date, 'yyyy-MM-dd') : "" 
+                }))}
+                placeholder="Select next due date"
+                minDate={localVaccine.date ? new Date(localVaccine.date + 'T00:00:00') : undefined}
               />
             </div>
             <div className="flex gap-2">
@@ -1033,20 +1045,26 @@ const PetManagement = () => {
             </div>
             <div>
               <Label>Date Given *</Label>
-              <Input
-                type="date"
-                value={localVaccineForm.date || ""}
-                max={new Date().toISOString().split("T")[0]}
-                onChange={(e) => setLocalVaccineForm(prev => ({ ...prev, date: e.target.value }))}
+              <DatePicker
+                date={localVaccineForm.date ? new Date(localVaccineForm.date + 'T00:00:00') : undefined}
+                onDateChange={(date) => setLocalVaccineForm(prev => ({ 
+                  ...prev, 
+                  date: date ? format(date, 'yyyy-MM-dd') : "" 
+                }))}
+                placeholder="Select date given"
+                maxDate={new Date()}
               />
             </div>
             <div>
               <Label>Next Due Date</Label>
-              <Input
-                type="date"
-                value={localVaccineForm.nextDue}
-                min={localVaccineForm.date || ""}
-                onChange={(e) => setLocalVaccineForm(prev => ({ ...prev, nextDue: e.target.value }))}
+              <DatePicker
+                date={localVaccineForm.nextDue ? new Date(localVaccineForm.nextDue + 'T00:00:00') : undefined}
+                onDateChange={(date) => setLocalVaccineForm(prev => ({ 
+                  ...prev, 
+                  nextDue: date ? format(date, 'yyyy-MM-dd') : "" 
+                }))}
+                placeholder="Select next due date"
+                minDate={localVaccineForm.date ? new Date(localVaccineForm.date + 'T00:00:00') : undefined}
               />
             </div>
             <div className="flex gap-2">
@@ -1125,11 +1143,14 @@ const PetManagement = () => {
             </div>
             <div>
               <Label>Date of Birth</Label>
-              <Input
-                type="date"
-                value={localEditDataForm.dateOfBirth}
-                max={new Date().toISOString().split("T")[0]}
-                onChange={(e) => setLocalEditDataForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+              <DatePicker
+                date={localEditDataForm.dateOfBirth ? new Date(localEditDataForm.dateOfBirth + 'T00:00:00') : undefined}
+                onDateChange={(date) => setLocalEditDataForm(prev => ({ 
+                  ...prev, 
+                  dateOfBirth: date ? format(date, 'yyyy-MM-dd') : "" 
+                }))}
+                placeholder="Select date of birth"
+                maxDate={new Date()}
               />
             </div>
             <div>
@@ -1231,11 +1252,14 @@ const PetManagement = () => {
             </div>
             <div>
               <Label>Date of Birth</Label>
-              <Input
-                type="date"
-                value={newPet.dateOfBirth}
-                max={new Date().toISOString().split("T")[0]}
-                onChange={(e) => setNewPet({ ...newPet, dateOfBirth: e.target.value })}
+              <DatePicker
+                date={newPet.dateOfBirth ? new Date(newPet.dateOfBirth + 'T00:00:00') : undefined}
+                onDateChange={(date) => setNewPet({ 
+                  ...newPet, 
+                  dateOfBirth: date ? format(date, 'yyyy-MM-dd') : "" 
+                })}
+                placeholder="Select date of birth"
+                maxDate={new Date()}
               />
             </div>
             <div>
