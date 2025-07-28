@@ -94,7 +94,7 @@ useEffect(() => {
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <div className="gradient-soft p-6 rounded-b-3xl">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between">
           <div>
             <h1 className="text-foreground font-bold">{greeting}</h1>
             <p className="text-muted-foreground">How are your furry friends today?</p>
@@ -128,7 +128,7 @@ useEffect(() => {
       {/* My Pets */}
       <div className="p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold">My Pets</h2>
+          <h2 className="font-semibold">My Pets ({pets.length})</h2>
           <Link to="/pets">
             <Button variant="ghost" size="sm">
               <Plus className="w-4 h-4 mr-2" />
