@@ -185,7 +185,7 @@ const VetFinder = () => {
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <div className="gradient-primary p-6 rounded-b-3xl">
-        <h1 className="text-white font-bold mb-4">Find Veterinarians</h1>
+        <h1 className="text-white font-bold mb-4">Find Veterinary Clinics</h1>
         <div className="relative">
           <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
           <Input

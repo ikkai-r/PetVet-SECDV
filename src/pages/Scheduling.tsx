@@ -501,7 +501,7 @@ const Scheduling = () => {
               </div>
             </div>
             <div>
-              <Label htmlFor="vetId">Veterinarian</Label>
+              <Label htmlFor="vetId">Veterinary Clinic</Label>
               <Select
                 value={newAppointment.vetId}
                 onValueChange={(value) => {
@@ -514,7 +514,7 @@ const Scheduling = () => {
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select vet" />
+                  <SelectValue placeholder="Select clinic" />
                 </SelectTrigger>
                 <SelectContent>
                   {vetClinics.map((clinic) => (
