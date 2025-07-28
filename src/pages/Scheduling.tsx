@@ -410,7 +410,7 @@ const Scheduling = () => {
                 upcomingReminders.map((reminder) => (
                   <div key={reminder.id} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <Bell className="w-4 h-4 text-warning" />
+                      <Bell className="w-7 h-7 text-warning" />
                       <div>
                         <p className="font-medium">{reminder.title}</p>
                         <p className="text-sm text-muted-foreground">{reminder.time}</p>
