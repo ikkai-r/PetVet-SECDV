@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-import { Search, Star, Phone, Filter } from "lucide-react";
+import { Search, Star, Phone, Filter, MapPin} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -183,9 +183,15 @@ const VetFinder = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
+     
       {/* Header */}
       <div className="gradient-primary p-6 rounded-b-3xl">
-        <h1 className="text-white font-bold mb-4">Find Veterinary Clinics</h1>
+        <div className="flex items-center gap-3 mb-4">
+        <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                <MapPin className=" text-white" />
+              </div>
+          <h1 className="text-white font-bold">Find Veterinary Clinics</h1>
+        </div>
         <div className="relative">
           <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
           <Input
@@ -196,6 +202,28 @@ const VetFinder = () => {
           />
         </div>
       </div>
+
+      {/* <div className="gradient-primary p-6 rounded-b-3xl">
+        <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                <MapPin className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-white font-bold mb-4">Find Veterinary Clinics</h1>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name or address..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 bg-white/90 border-0"
+                  />
+                </div>
+              </div>
+            </div>
+        </div>
+      </div> */}
 
       {/* Map */}
       <div className="h-96 m-6 rounded-2xl overflow-hidden">

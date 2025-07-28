@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, Edit, Camera, Heart, Calendar, FileText, Weight, Trash2 } from "lucide-react"; // Added Trash2 icon
+import { Plus, Edit, Camera, Heart, Calendar, FileText, Weight, Trash2, PawPrint} from "lucide-react"; // Added Trash2 icon
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -807,7 +807,7 @@ const PetManagement = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <div className="gradient-primary p-6 rounded-b-3xl">
+      {/* <div className="gradient-primary p-6 rounded-b-3xl">
         <div className="flex items-center justify-between">
           <h1 className="text-white font-bold">My Pets</h1>
           <Button
@@ -821,6 +821,33 @@ const PetManagement = () => {
           </Button>
         </div>
         <p className="text-white/90 mt-2">Manage your furry family members</p>
+      </div> */}
+
+      <div className="gradient-primary p-6 rounded-b-3xl">
+        <div className="flex items-center justify-between">
+          {/* Left: Icon + Text */}
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+              <PawPrint className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-white font-bold">My Pets</h1>
+              <p className="text-white/90 text-sm">
+                Manage your furry family members
+              </p>
+            </div>
+          </div>
+
+          {/* Right: + Button */}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setActiveModal("addPet")}
+            className="bg-white/20 text-white hover:bg-white/30"
+          >
+            +
+          </Button>
+        </div>
       </div>
 
       {error && (

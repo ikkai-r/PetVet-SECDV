@@ -244,9 +244,18 @@ const Scheduling = () => {
       {/* Header */}
       <div className="gradient-primary p-6 rounded-b-3xl">
         <div className="flex items-center justify-between">
-          <h1 className="text-white font-bold">Schedule & Reminders</h1>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                <Calendar className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-white font-bold">Schedule & Reminders</h1>
+                <p className="text-white/90 text-sm">
+                  Never miss an appointment
+                </p>
+              </div>
+            </div>
         </div>
-        <p className="text-white/90 mt-2">Never miss an appointment</p>
       </div>
 
       {/* View Toggle */}
