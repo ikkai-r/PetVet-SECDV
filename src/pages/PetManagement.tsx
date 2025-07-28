@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Navigation from "@/components/Navigation";
 import PetCard from "@/components/PetCard";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 import { db, auth, storage } from "@/lib/firebase"; // Import storage
 import { collection, query, where, onSnapshot, addDoc, updateDoc, doc } from "firebase/firestore";
@@ -633,13 +634,14 @@ const PetManagement = () => {
 
  const PetDetailsDialog = ({ pet, open, onClose }: { pet: Pet | null; open: boolean; onClose: () => void }) => (
      <Dialog open={open} onOpenChange={(val) => { if (!val) onClose(); }}>
-      <DialogContent className="w-full max-w-4xl sm:h-[550px] h-[95vh] p-2 sm:p-6 animate-in fade-in zoom-in-95 slide-in-from-top-10">
-        {/* <DialogHeader>
+      <DialogContent className="sm:max-w-4xl max-w-xs sm:h-[65vh] h-[70vh] p-6 sm:p-2 animate-in fade-in zoom-in-95 slide-in-from-top-10 sm:mb-0 rounded-lg sm:rounded-2xl">
+        <VisuallyHidden>
           <DialogTitle>Pet Profile</DialogTitle>
-        </DialogHeader> */}
-        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start">
+        </VisuallyHidden>
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 items-start">
+          
           {/* Left: Pet Photo + Info */}
-          <div className="sm:w-1/3 size-full flex flex-col items-center justify-center bg-muted/30 rounded-lg p-4 sm:mb-0">
+          <div className="sm:w-1/3 size-full flex flex-col items-center justify-center p-2 sm:p-4 sm:mb-0">
             <div className="w-40 h-40 rounded-full bg-gradient-soft flex items-center justify-center overflow-hidden mb-4">
               {pet?.photo ? (
                 <img src={pet.photo} alt={pet.name} className="w-full h-full object-cover rounded-full" />
@@ -647,7 +649,7 @@ const PetManagement = () => {
                 <Heart className="w-12 h-12 text-primary" />
               )}
             </div>
-            <div className="text-center space-y-1">
+            <div className="text-center space-y-1 hidden sm:block">
               <h3 className="font-semibold text-lg">{pet?.name}</h3>
                <div className="flex text-sm text-muted-foreground">
                   <span className="font-medium w-[80px]">Species:</span>
@@ -669,16 +671,42 @@ const PetManagement = () => {
           </div>
 
           {/* Right: Tabs with scroll */}
-          <div className="sm:w-2/3 size-full flex flex-col pr-0 sm:pr-2 mt-3">
-            <Tabs defaultValue="vaccines" className="space-y-1 flex-1 flex flex-col">
-              <TabsList className="grid grid-cols-2 w-full">
-                <TabsTrigger value="vaccines">Vaccines</TabsTrigger>
-                <TabsTrigger value="records">Records</TabsTrigger>
-              </TabsList>
-              
-              <div className="flex-1 min-h-0">
+          <div defaultValue={window.innerWidth < 640 ? "info" : "vaccines"} className="sm:w-2/3 w-full h-full justify-between flex flex-col pr-0 sm:pr-2 sm:mt-7 ">
+            <Tabs defaultValue={window.innerWidth < 640 ? "info" : "records"} className="space-y-1 flex flex-col h-5/6 mb-3">
+                <TabsList className="grid grid-cols-3 sm:grid-cols-2 w-full sm:mb-2">
+                  <TabsTrigger value="info" className="block sm:hidden">Details</TabsTrigger>
+                  <TabsTrigger value="records">Records</TabsTrigger>
+                  <TabsTrigger value="vaccines">Vaccines</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="info" className="block sm:hidden">
+                  <div className="flex flex-col justify-center items-center text-center space-y-1 p-4 h-52 sm:max-h-80">
+                    {/* <h3 className="font-semibold text-lg">{pet?.name}</h3> */}
+                    <div className="flex text-sm text-muted-foreground justify-center">
+                      <span className="font-medium w-[80px]">Name:</span>
+                      <span>{pet?.name}</span>
+                    </div>
+                    <div className="flex text-sm text-muted-foreground justify-center">
+                      <span className="font-medium w-[80px]">Species:</span>
+                      <span>{pet?.species}</span>
+                    </div>
+                    <div className="flex text-sm text-muted-foreground justify-center">
+                      <span className="font-medium w-[80px]">Breed:</span>
+                      <span>{pet?.breed}</span>
+                    </div>
+                    <div className="flex text-sm text-muted-foreground justify-center">
+                      <span className="font-medium w-[80px]">Birthday:</span>
+                      <span>{pet?.dateOfBirth}</span>
+                    </div>
+                    <div className="flex text-sm text-muted-foreground justify-center">
+                      <span className="font-medium w-[80px]">Weight:</span>
+                      <span>{pet?.weight} kg</span>
+                    </div>
+                  </div>
+                </TabsContent>
+
                 <TabsContent value="vaccines">
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center justify-between sm:mb-2">
                     <Label>Vaccinations</Label>
                     <Button
                       variant="ghost"
@@ -689,7 +717,8 @@ const PetManagement = () => {
                       <Plus className="w-5 h-5" />
                     </Button>
                   </div>
-                  <div className="max-h-[220px] sm:max-h-[315px] overflow-y-auto">
+
+                  <div className="max-h-52 h-40 sm:max-h-[340px] sm:h-[340px] overflow-y-auto scrollbar-thin">
                     {pet?.vaccines?.length ? (
                       pet.vaccines.map((vaccine, idx) => (
                         <div key={vaccine.id || idx} className="text-sm text-muted-foreground mb-2 p-2 bg-muted/50 rounded flex justify-between items-center">
@@ -718,7 +747,7 @@ const PetManagement = () => {
                 </TabsContent>
 
                 <TabsContent value="records">
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center justify-between sm:mb-2">
                     <Label>Medical Records</Label>
                     <Button
                       variant="ghost"
@@ -729,7 +758,9 @@ const PetManagement = () => {
                       <Plus className="w-5 h-5" />
                     </Button>
                   </div>
-                  <div className="max-h-[220px] sm:max-h-[315px] overflow-y-auto scrollbar-thin">
+                  
+                  {/* max-h-[200px] */}
+                  <div className="max-h-52 h-40 sm:max-h-[340px] sm:h-[340px] overflow-y-auto scrollbar-thin">
                     {pet?.records?.length ? (
                       pet.records.map((record, idx) => (
                         <div key={record.id || idx} className="text-sm text-muted-foreground mb-2 p-2 bg-muted/50 rounded flex justify-between items-center">
@@ -755,21 +786,22 @@ const PetManagement = () => {
                     )}
                   </div>
                 </TabsContent>
-              </div>
-            </Tabs>
-
+              </Tabs>
+ 
             {/* Action buttons */}
-            <div className="flex justify-center gap-3 p-4 border-t">
+            <div className="flex justify-center gap-3 border-t pt-3 h-1/6 ">
               <Button className="w-full" variant="destructive" onClick={handleDeletePet} disabled={loading}>
                 {loading ? "Deleting..." : "Delete"}
               </Button>
               <Button className="w-full" onClick={() => openEditProfile(pet!)}>Edit</Button>
             </div>
+            
           </div>
         </div>
       </DialogContent>
     </Dialog>
   );
+
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -828,7 +860,7 @@ const PetManagement = () => {
 
       {/* Add Record Dialog */}
       <Dialog open={activeModal === "addRecord"} onOpenChange={(open) => { if (!open) setActiveModal(null); }}>
-                <DialogContent className="max-w-md animate-in fade-in zoom-in-95 slide-in-from-top-10">
+        <DialogContent className="sm:max-w-4xl max-w-xs rounded-lg sm:rounded-2xl  animate-in fade-in zoom-in-95 slide-in-from-top-10">
           <DialogHeader>
             <DialogTitle>Add Medical Record</DialogTitle>
           </DialogHeader>
@@ -875,7 +907,7 @@ const PetManagement = () => {
 
       {/* Edit Record Dialog */}
       <Dialog open={activeModal === "editRecord"} onOpenChange={(open) => { if (!open) setActiveModal(null); }}>
-                <DialogContent className="max-w-md animate-in fade-in zoom-in-95 slide-in-from-top-10">
+        <DialogContent className="sm:max-w-4xl max-w-xs rounded-lg sm:rounded-2xl  animate-in fade-in zoom-in-95 slide-in-from-top-10">
           <DialogHeader>
             <DialogTitle>Edit Medical Record</DialogTitle>
           </DialogHeader>
@@ -929,7 +961,7 @@ const PetManagement = () => {
 
       {/* Add Vaccine Dialog */}
       <Dialog open={activeModal === "addVaccine"} onOpenChange={(open) => { if (!open) setActiveModal(null); }}>
-                <DialogContent className="max-w-md animate-in fade-in zoom-in-95 slide-in-from-top-10">
+        <DialogContent className="sm:max-w-4xl max-w-xs rounded-lg sm:rounded-2xl  animate-in fade-in zoom-in-95 slide-in-from-top-10">
           <DialogHeader>
             <DialogTitle>Add Vaccination</DialogTitle>
           </DialogHeader>
@@ -986,7 +1018,7 @@ const PetManagement = () => {
         }}
       >
 
-        <DialogContent className="max-w-md animate-in fade-in zoom-in-95 slide-in-from-top-10">
+        <DialogContent className="sm:max-w-4xl max-w-xs rounded-lg sm:rounded-2xl animate-in fade-in zoom-in-95 slide-in-from-top-10">
           <DialogHeader>
             <DialogTitle>Edit Vaccination</DialogTitle>
           </DialogHeader>
@@ -1040,7 +1072,7 @@ const PetManagement = () => {
           setActiveModal(null);
         }
       }}>
-                <DialogContent className="max-w-md animate-in fade-in zoom-in-95 slide-in-from-top-10">
+        <DialogContent className="sm:max-w-4xl max-w-xs rounded-lg sm:rounded-2xl  animate-in fade-in zoom-in-95 slide-in-from-top-10">
           <DialogHeader>
             <DialogTitle>Edit Pet Profile</DialogTitle>
           </DialogHeader>
@@ -1144,7 +1176,7 @@ const PetManagement = () => {
           setActiveModal(null);
         }
       }}>
-                <DialogContent className="max-w-md animate-in fade-in zoom-in-95 slide-in-from-top-10">
+        <DialogContent className="sm:max-w-4xl max-w-xs rounded-lg sm:rounded-2xl  animate-in fade-in zoom-in-95 slide-in-from-top-10">
           <DialogHeader>
             <DialogTitle>Add New Pet</DialogTitle>
           </DialogHeader>
