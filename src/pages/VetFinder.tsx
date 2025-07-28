@@ -4,11 +4,15 @@ import { useState, useEffect } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-import { Search, MapPin, Star, Phone, Filter } from "lucide-react";
+import { Search, Star, Phone, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import Navigation from "@/components/Navigation";
+
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 
 // Haversine formula to compute distance in kilometers
@@ -191,12 +195,40 @@ const VetFinder = () => {
         </div>
       </div>
 
-      {/* Map Placeholder */}
-      <div className="h-48 bg-muted m-6 rounded-2xl flex items-center justify-center">
-        <div className="text-center">
-          <MapPin className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
-          <p className="text-muted-foreground">Map preview coming soon</p>
-        </div>
+      {/* Map */}
+      <div className="h-96 m-6 rounded-2xl overflow-hidden">
+        <MapContainer
+          center={userLocation ? [userLocation.latitude, userLocation.longitude] : [14.5995, 120.9842]}
+          zoom={12}
+          scrollWheelZoom={true}
+          className="h-full w-full rounded-2xl"
+        >
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
+          />
+          {filteredVets.map((vet) => (
+            vet.latitude && vet.longitude && (
+              <Marker
+                key={vet.id}
+                position={[vet.latitude, vet.longitude]}
+                icon={L.icon({
+                  iconUrl: "/loc_paw.svg",
+                  iconSize: [30, 42], // size of the icon
+                  iconAnchor: [15, 42], // point of the icon which will correspond to marker's location
+                  popupAnchor: [0, -40], // point from which the popup should open relative to the iconAnchor
+                })}
+              >
+                <Popup>
+                  <strong>{vet.name}</strong><br />
+                  {vet.address}<br />
+                  Rating: {vet.rating} stars<br />
+                  Distance: {vet.distance ? vet.distance.toFixed(1) + " km" : "Unknown"}
+                </Popup>
+              </Marker>
+            )
+          ))}
+        </MapContainer>
       </div>
 
       {/* Filters */}
@@ -293,7 +325,7 @@ const VetFinder = () => {
 
                 <div className="flex items-center gap-4 mb-3 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
-                    <MapPin className="w-4 h-4" />
+                    <img src="/loc_paw.svg" alt="Location" className="w-4 h-4" />
                     {vet.distance != null
                       ? `${vet.distance.toFixed(1)} km`
                       : "Unknown"}
