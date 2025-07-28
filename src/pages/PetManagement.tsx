@@ -956,6 +956,7 @@ const PetManagement = () => {
               <Input
                 type="date"
                 value={localVaccine.nextDue}
+                min={localVaccine.date || ""}
                 onChange={(e) => setLocalVaccine(prev => ({ ...prev, nextDue: e.target.value }))}
               />
             </div>
@@ -1012,6 +1013,7 @@ const PetManagement = () => {
               <Input
                 type="date"
                 value={localVaccineForm.nextDue}
+                min={localVaccineForm.date || ""}
                 onChange={(e) => setLocalVaccineForm(prev => ({ ...prev, nextDue: e.target.value }))}
               />
             </div>
