@@ -298,7 +298,6 @@ const VetFinder = () => {
             )}
           </div>
         </div>
-
             {!loading &&
               filteredVets.map((vet) => (
                 <Card
@@ -356,6 +355,7 @@ const VetFinder = () => {
                 onClick={() => {
                   setSelectedClinic(vet);
                   setShowModal(true);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
                 size="sm"
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
@@ -369,7 +369,7 @@ const VetFinder = () => {
           ))}
       </div>
       {showModal && selectedClinic && (
-      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+      <div className="fixed inset-0 z-[10000] bg-black/50 flex items-center justify-center ">
         <div className="bg-white rounded-xl p-6 w-[90%] max-w-md shadow-lg">
           <h3 className="text-lg font-bold mb-2">{selectedClinic.name}</h3>
           <p className="text-sm text-muted-foreground mb-4">
