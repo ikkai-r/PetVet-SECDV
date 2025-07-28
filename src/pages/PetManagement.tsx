@@ -854,6 +854,7 @@ const PetManagement = () => {
               <Input
                 type="date"
                 value={localRecord.date}
+                max={new Date().toISOString().split("T")[0]}
                 onChange={(e) => setLocalRecord(prev => ({ ...prev, date: e.target.value }))}
               />
             </div>
@@ -904,6 +905,7 @@ const PetManagement = () => {
               <Input
                 type="date"
                 value={localRecordForm.date}
+                max={new Date().toISOString().split("T")[0]}
                 onChange={(e) =>
                   setLocalRecordForm((prev) => ({ ...prev, date: e.target.value }))
                 }
@@ -945,6 +947,7 @@ const PetManagement = () => {
               <Input
                 type="date"
                 value={localVaccine.date}
+                max={new Date().toISOString().split("T")[0]}
                 onChange={(e) => setLocalVaccine(prev => ({ ...prev, date: e.target.value }))}
               />
             </div>
@@ -1000,6 +1003,7 @@ const PetManagement = () => {
               <Input
                 type="date"
                 value={localVaccineForm.date || ""}
+                max={new Date().toISOString().split("T")[0]}
                 onChange={(e) => setLocalVaccineForm(prev => ({ ...prev, date: e.target.value }))}
               />
             </div>
@@ -1090,6 +1094,7 @@ const PetManagement = () => {
               <Input
                 type="date"
                 value={localEditDataForm.dateOfBirth}
+                max={new Date().toISOString().split("T")[0]}
                 onChange={(e) => setLocalEditDataForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
               />
             </div>
@@ -1195,6 +1200,7 @@ const PetManagement = () => {
               <Input
                 type="date"
                 value={newPet.dateOfBirth}
+                max={new Date().toISOString().split("T")[0]}
                 onChange={(e) => setNewPet({ ...newPet, dateOfBirth: e.target.value })}
               />
             </div>
