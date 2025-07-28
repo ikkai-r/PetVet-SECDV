@@ -146,10 +146,8 @@ const DrPurr = () => {
 
   const quickQuestions = [
     "Is my pet's behavior normal?",
-    "What should I feed my pet?",
     "How often should I exercise my pet?",
     "When should I visit the vet?",
-    "Help with pet training tips",
     "Emergency symptoms to watch for",
   ];
 
