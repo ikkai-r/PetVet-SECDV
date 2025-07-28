@@ -136,7 +136,7 @@ useEffect(() => {
             </Button>
           </Link>
         </div>
-        <div className="space-y-4">
+        <div className="lg:grid gap-4 2xl:grid-cols-5  xl:grid-cols-4 lg:grid-cols-3 flex flex-col">
           {pets.length > 0 ? (
             pets.map((pet) => (
               <PetCard

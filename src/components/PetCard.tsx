@@ -21,10 +21,10 @@ interface PetCardProps {
 const PetCard = ({ pet, onEdit }: PetCardProps) => {
   return (
     <div
-      className="min-w-[250px] bg-white shadow-md rounded-xl overflow-hidden flex-shrink-0 cursor-pointer transition-transform transform hover:scale-105 hover:shadow-lg flex items-center"
+      className="min-w-[250px] bg-white shadow-md rounded-xl overflow-hidden flex-shrink-0 cursor-pointer transition-transform transform hover:scale-105 hover:shadow-lg flex items-center flex-row lg:flex-col"
       onClick={() => onEdit(pet)}
     >
-      <div className="w-28 h-28 flex-shrink-0 bg-gray-100 flex items-center justify-center overflow-hidden">
+      <div className="w-28 lg:w-full h-28 lg:h-52 flex-shrink-0 bg-gray-100 flex items-center justify-center overflow-hidden">
         {pet.photo ? (
           <img src={pet.photo} alt={pet.name} className="w-full h-full object-cover" />
         ) : (
@@ -32,9 +32,9 @@ const PetCard = ({ pet, onEdit }: PetCardProps) => {
         )}
       </div>
       <div className="p-4 flex-grow">
-        <h3 className="font-semibold text-lg">{pet.name}</h3>
-        <p className="text-sm text-muted-foreground">{pet.species}: {pet.breed}</p>
-        <p className="text-sm text-muted-foreground">{pet.age}</p>
+        <h3 className="font-semibold text-lg text-left lg:text-center">{pet.name}</h3>
+        <p className="text-sm text-muted-foreground text-left lg:text-center">{pet.species}: {pet.breed}</p>
+        <p className="text-sm text-muted-foreground text-left lg:text-center">{pet.age}</p>
       </div>
     </div>
   );

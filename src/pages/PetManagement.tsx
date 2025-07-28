@@ -797,7 +797,7 @@ const PetManagement = () => {
         </div>
       )}
 
-      <div className="p-6 flex gap-4 overflow-x-auto">
+      <div className="p-6 gap-4 lg:grid 2xl:grid-cols-5  xl:grid-cols-4 lg:grid-cols-3 flex flex-col">
         {pets.length > 0 ? (
           pets.map((pet) => (
             <PetCard
