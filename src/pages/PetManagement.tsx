@@ -9,11 +9,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Navigation from "@/components/Navigation";
 import PetCard from "@/components/PetCard";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 import { db, auth, storage } from "@/lib/firebase"; // Import storage
 import { collection, query, where, onSnapshot, addDoc, updateDoc, doc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"; // Import storage functions
 import { User } from "firebase/auth";
+import { deletePet } from "@/services/firestore"; 
 
 const calculateAge = (dateOfBirth: string): string => {
   const today = new Date();
@@ -602,6 +604,22 @@ const PetManagement = () => {
     }
   };
 
+   const handleDeletePet = async () => {
+    if (!selectedPet || !user) return;
+    if (!window.confirm("Are you sure you want to delete this pet? This action cannot be undone.")) return;
+      setLoading(true);
+    try {
+      await deletePet(selectedPet.id);
+      setActiveModal(null);
+      setSelectedPet(null);
+    } catch (error) {
+      setError("Failed to delete pet. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -614,113 +632,139 @@ const PetManagement = () => {
   }
 
  const PetDetailsDialog = ({ pet, open, onClose }: { pet: Pet | null; open: boolean; onClose: () => void }) => (
-    <Dialog open={open} onOpenChange={(val) => { if (!val) onClose(); }}>
-      <DialogContent className="max-w-md animate-in fade-in zoom-in-95 slide-in-from-top-10">
-        <DialogHeader>
-          <DialogTitle>{pet?.name} - Pet Profile</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <div className="text-center">
-            <div className="w-24 h-24 rounded-full bg-gradient-soft flex items-center justify-center mx-auto mb-4 overflow-hidden">
+     <Dialog open={open} onOpenChange={(val) => { if (!val) onClose(); }}>
+      <DialogContent className="w-full max-w-4xl sm:h-[550px] h-[95vh] p-2 sm:p-6 animate-in fade-in zoom-in-95 slide-in-from-top-10">
+        {/* <DialogHeader>
+          <DialogTitle>Pet Profile</DialogTitle>
+        </DialogHeader> */}
+        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start">
+          {/* Left: Pet Photo + Info */}
+          <div className="sm:w-1/3 size-full flex flex-col items-center justify-center bg-muted/30 rounded-lg p-4 sm:mb-0">
+            <div className="w-40 h-40 rounded-full bg-gradient-soft flex items-center justify-center overflow-hidden mb-4">
               {pet?.photo ? (
                 <img src={pet.photo} alt={pet.name} className="w-full h-full object-cover rounded-full" />
               ) : (
                 <Heart className="w-12 h-12 text-primary" />
               )}
             </div>
-            <p className="text-sm text-muted-foreground">{pet?.species} • {pet?.breed}</p>
-            <p className="text-sm text-muted-foreground">{pet?.dateOfBirth}</p>
-            <p className="text-sm text-muted-foreground">{pet?.weight} kg</p>
-          </div>
-
-          <div>
-            <Label className="block mb-1">Vaccinations</Label>
-            {pet?.vaccines?.length ? (
-              pet.vaccines.map((vaccine, idx) => (
-                <div key={vaccine.id || idx} className="text-sm text-muted-foreground mb-2 p-2 bg-muted/50 rounded flex justify-between items-center">
-                  <div>
-                    <strong>{vaccine.name}</strong><br />
-                    Given: {vaccine.date}<br />
-                    {vaccine.nextDue && `Next Due: ${vaccine.nextDue}`}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setCurrentVaccineToEdit({ ...vaccine, id: vaccine.id || idx.toString() });
-                        setTimeout(() => setActiveModal("editVaccine"), 0);
-                      }}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteVaccine(vaccine.id || idx)}
-                      className="text-red-500 hover:text-red-600"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+            <div className="text-center space-y-1">
+              <h3 className="font-semibold text-lg">{pet?.name}</h3>
+               <div className="flex text-sm text-muted-foreground">
+                  <span className="font-medium w-[80px]">Species:</span>
+                  <span>{pet?.species}</span>
                 </div>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">No vaccines recorded</p>
-            )}
-          </div>
-
-          <div>
-            <Label className="block mb-1">Medical Records</Label>
-            {pet?.records?.length ? (
-              pet.records.map((record, idx) => (
-                <div key={record.id || idx} className="text-sm text-muted-foreground mb-2 p-2 bg-muted/50 rounded flex justify-between items-center">
-                  <div>
-                    <strong>{record.title}</strong> ({record.date})<br />
-                    {record.description}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setCurrentRecordToEdit({ ...record, id: record.id || idx.toString() });
-                        setTimeout(() => setActiveModal("editRecord"), 0); 
-                      }}
-
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteRecord(record.id || idx)}
-                      className="text-red-500 hover:text-red-600"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+                <div className="flex text-sm text-muted-foreground">
+                  <span className="font-medium w-[80px]">Breed:</span>
+                  <span>{pet?.breed}</span>
                 </div>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">No records</p>
-            )}
+                <div className="flex text-sm text-muted-foreground">
+                  <span className="font-medium w-[80px]">Birthday:</span>
+                  <span>{pet?.dateOfBirth}</span>
+                </div>
+                <div className="flex text-sm text-muted-foreground">
+                  <span className="font-medium w-[80px]">Weight:</span>
+                  <span>{pet?.weight} kg</span>
+                </div>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-3">
-            <Button onClick={() => openEditProfile(pet!)}>
-              <Edit className="w-4 h-4 mr-2" />
-              Edit Profile
-            </Button>
-            <Button variant="secondary" onClick={() => setActiveModal("addRecord")}>
-              <FileText className="w-4 h-4 mr-2" />
-              Add Record
-            </Button>
-            <Button variant="outline" onClick={() => setActiveModal("addVaccine")}>
-              <Calendar className="w-4 h-4 mr-2" />
-              Add Vaccine
-            </Button>
+          {/* Right: Tabs with scroll */}
+          <div className="sm:w-2/3 size-full flex flex-col pr-0 sm:pr-2 mt-3">
+            <Tabs defaultValue="vaccines" className="space-y-1 flex-1 flex flex-col">
+              <TabsList className="grid grid-cols-2 w-full">
+                <TabsTrigger value="vaccines">Vaccines</TabsTrigger>
+                <TabsTrigger value="records">Records</TabsTrigger>
+              </TabsList>
+              
+              <div className="flex-1 min-h-0">
+                <TabsContent value="vaccines">
+                  <div className="flex items-center justify-between mb-1">
+                    <Label>Vaccinations</Label>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setActiveModal("addVaccine")}
+                      className="ml-2"
+                    >
+                      <Plus className="w-5 h-5" />
+                    </Button>
+                  </div>
+                  <div className="max-h-[220px] sm:max-h-[315px] overflow-y-auto">
+                    {pet?.vaccines?.length ? (
+                      pet.vaccines.map((vaccine, idx) => (
+                        <div key={vaccine.id || idx} className="text-sm text-muted-foreground mb-2 p-2 bg-muted/50 rounded flex justify-between items-center">
+                          <div>
+                            <strong>{vaccine.name}</strong><br />
+                            Given: {vaccine.date}<br />
+                            {vaccine.nextDue && `Next Due: ${vaccine.nextDue}`}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => {
+                              setCurrentVaccineToEdit({ ...vaccine, id: vaccine.id || idx.toString() });
+                              setTimeout(() => setActiveModal("editVaccine"), 0);
+                            }}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleDeleteVaccine(vaccine.id || idx)} className="text-red-500 hover:text-red-600">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No vaccines recorded</p>
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="records">
+                  <div className="flex items-center justify-between mb-1">
+                    <Label>Medical Records</Label>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setActiveModal("addRecord")}
+                      className="ml-2"
+                    >
+                      <Plus className="w-5 h-5" />
+                    </Button>
+                  </div>
+                  <div className="max-h-[220px] sm:max-h-[315px] overflow-y-auto scrollbar-thin">
+                    {pet?.records?.length ? (
+                      pet.records.map((record, idx) => (
+                        <div key={record.id || idx} className="text-sm text-muted-foreground mb-2 p-2 bg-muted/50 rounded flex justify-between items-center">
+                          <div>
+                            <strong>{record.title}</strong> ({record.date})<br />
+                            {record.description}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => {
+                              setCurrentRecordToEdit({ ...record, id: record.id || idx.toString() });
+                              setTimeout(() => setActiveModal("editRecord"), 0);
+                            }}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleDeleteRecord(record.id || idx)} className="text-red-500 hover:text-red-600">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No records</p>
+                    )}
+                  </div>
+                </TabsContent>
+              </div>
+            </Tabs>
+
+            {/* Action buttons */}
+            <div className="flex justify-center gap-3 p-4 border-t">
+              <Button className="w-full" variant="destructive" onClick={handleDeletePet} disabled={loading}>
+                {loading ? "Deleting..." : "Delete"}
+              </Button>
+              <Button className="w-full" onClick={() => openEditProfile(pet!)}>Edit</Button>
+            </div>
           </div>
         </div>
       </DialogContent>
@@ -753,7 +797,7 @@ const PetManagement = () => {
         </div>
       )}
 
-      <div className="p-6 space-y-4">
+      <div className="p-6 flex gap-4 overflow-x-auto">
         {pets.length > 0 ? (
           pets.map((pet) => (
             <PetCard
