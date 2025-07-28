@@ -54,6 +54,8 @@ const VetFinder = () => {
     return [];
   });
 
+  const [map, setMap] = useState(null);
+
   const toggleFavorite = (vetId) => {
     setFavorites((prev) => {
       let updated;
@@ -202,6 +204,7 @@ const VetFinder = () => {
           zoom={12}
           scrollWheelZoom={true}
           className="h-full w-full rounded-2xl"
+          whenReady={(map) => setMap(map.target)}
         >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -296,32 +299,42 @@ const VetFinder = () => {
           </div>
         </div>
 
-        {!loading &&
-          filteredVets.map((vet) => (
-            <Card key={vet.id} className="hover:shadow-medium transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex-1">
-                    <h3 className="font-semibold">{vet.name}</h3>
-                    <p className="text-sm text-muted-foreground">{vet.address}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => toggleFavorite(vet.id)}
-                      aria-label={favorites.includes(vet.id) ? "Unfavorite" : "Favorite"}
-                      className="focus:outline-none"
-                    >
-                      <Heart
-                        className={`w-6 h-6 ${
-                          favorites.includes(vet.id) ? "text-red-500 fill-current" : "text-gray-400"
-                        }`}
-                      />
-                    </button>
-                    <div className="px-2 py-1 rounded-full text-xs font-medium bg-success text-success-foreground">
-                      Open
+            {!loading &&
+              filteredVets.map((vet) => (
+                <Card
+                  key={vet.id}
+                  className="hover:shadow-medium transition-shadow"
+                  onClick={() => {
+                    if (map && vet.latitude && vet.longitude) {
+                      map.flyTo([vet.latitude, vet.longitude], 15, {
+                        duration: 1.5,
+                      });
+                    }
+                  }}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex-1">
+                        <h3 className="font-semibold">{vet.name}</h3>
+                        <p className="text-sm text-muted-foreground">{vet.address}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => toggleFavorite(vet.id)}
+                          aria-label={favorites.includes(vet.id) ? "Unfavorite" : "Favorite"}
+                          className="focus:outline-none"
+                        >
+                          <Heart
+                            className={`w-6 h-6 ${
+                              favorites.includes(vet.id) ? "text-red-500 fill-current" : "text-gray-400"
+                            }`}
+                          />
+                        </button>
+                        <div className="px-2 py-1 rounded-full text-xs font-medium bg-success text-success-foreground">
+                          Open
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
 
                 <div className="flex items-center gap-4 mb-3 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
