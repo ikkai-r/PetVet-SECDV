@@ -239,32 +239,8 @@ const DrPurr = () => {
         </div>
       </div> */}
 
-      {/* Chat Messages */}
-      <div className="flex-1 p-6 pb-0">
-        <div className="space-y-4">
-          {messages.map((msg) => (
-            <div key={msg.id} className={`flex ${msg.type === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`flex items-start gap-3 max-w-[80%] ${msg.type === "user" ? "flex-row-reverse" : ""}`}>
-                <Avatar className="w-8 h-8">
-                  <AvatarFallback
-                    className={msg.type === "user" ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground"}
-                  >
-                    {msg.type === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-                  </AvatarFallback>
-                </Avatar>
-                <div className={`rounded-2xl p-3 ${msg.type === "user" ? "chat-bubble-user" : "chat-bubble-ai"}`}>
-                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                  <p className="text-xs opacity-70 mt-1">
-                    {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Health Tips Card */}
+        {/* Health Tips Card */}
       <div className="p-6 pt-4">
         <Card className="bg-primary/5 border-primary/20">
           <CardContent className="p-4">
@@ -298,6 +274,32 @@ const DrPurr = () => {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+
+      {/* Chat Messages */}
+      <div className="flex-1 p-6 pb-0">
+        <div className="space-y-4">
+          {messages.map((msg) => (
+            <div key={msg.id} className={`flex ${msg.type === "user" ? "justify-end" : "justify-start"}`}>
+              <div className={`flex items-start gap-3 max-w-[80%] ${msg.type === "user" ? "flex-row-reverse" : ""}`}>
+                <Avatar className="w-8 h-8">
+                  <AvatarFallback
+                    className={msg.type === "user" ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground"}
+                  >
+                    {msg.type === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                  </AvatarFallback>
+                </Avatar>
+                <div className={`rounded-2xl p-3 ${msg.type === "user" ? "chat-bubble-user" : "chat-bubble-ai"}`}>
+                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                  <p className="text-xs opacity-70 mt-1">
+                    {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Chat Input */}
