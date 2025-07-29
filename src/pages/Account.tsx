@@ -175,18 +175,11 @@ const Account = () => {
     }
   };
 
-  const fetchCloudinaryConfig = async () => {
-  try {
-    const res = await fetch('http://localhost:3001/api/cloudinary-params');
-    if (!res.ok) {
-      throw new Error(`Failed to fetch Cloudinary config: ${res.status} ${res.statusText}`);
-    }
-    const { cloudName, uploadPreset } = await res.json();
-    return { cloudName, uploadPreset };
-  } catch (error) {
-    console.error("Error fetching Cloudinary config:", error);
-    throw new Error("Failed to get Cloudinary configuration from server");
-  }
+const fetchCloudinaryConfig = async () => {
+  return {
+    cloudName: "dy2u2kqo6",
+    uploadPreset: "l0ngm08u",
+  };
 };
 
   const handleSaveSettings = () => {

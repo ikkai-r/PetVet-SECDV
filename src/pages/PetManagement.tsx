@@ -39,6 +39,13 @@ const calculateAge = (dateOfBirth: string): string => {
 };
 
 const fetchCloudinaryConfig = async () => {
+  return {
+    cloudName: "dy2u2kqo6",
+    uploadPreset: "l0ngm08u",
+  };
+};
+
+/*const fetchCloudinaryConfig = async () => {
   try {
     const res = await fetch('http://localhost:3001/api/cloudinary-params');
     if (!res.ok) {
@@ -50,7 +57,7 @@ const fetchCloudinaryConfig = async () => {
     console.error("Error fetching Cloudinary config:", error);
     throw new Error("Failed to get Cloudinary configuration from server");
   }
-};
+};*/
 
 interface Pet {
   id: string;

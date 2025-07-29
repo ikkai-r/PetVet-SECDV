@@ -24,8 +24,8 @@ import { useToast } from "@/hooks/use-toast";
 // Note: This fetch call runs outside the component.
 // Ensure your server at http://localhost:3001/api/gemini-token is running
 // and correctly returning the API key.
-let geminiToken = "";
-(async () => {
+let geminiToken = "AIzaSyBTvPbl_dgSRj014OTlDmjsH3v9jrKKggE";
+/*(async () => {
   try {
     const res = await fetch("http://localhost:3001/api/gemini-token");
     const { token } = await res.json();
@@ -37,7 +37,7 @@ let geminiToken = "";
   } catch (err) {
     console.error("Failed to load Gemini API key from server", err);
   }
-})();
+})();*/
 
 const DrPurr = () => {
   const { user } = useAuth(); // Assuming useAuth correctly provides the current user
