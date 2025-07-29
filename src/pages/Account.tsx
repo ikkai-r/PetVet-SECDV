@@ -177,8 +177,8 @@ const Account = () => {
 
 const fetchCloudinaryConfig = async () => {
   return {
-    cloudName: "dy2u2kqo6",
-    uploadPreset: "l0ngm08u",
+    cloudName:  import.meta.env.VITE_CLOUDINARY_CLOUD_NAME,
+    uploadPreset: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET,
   };
 };
 

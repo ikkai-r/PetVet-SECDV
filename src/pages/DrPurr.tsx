@@ -24,7 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 // Note: This fetch call runs outside the component.
 // Ensure your server at http://localhost:3001/api/gemini-token is running
 // and correctly returning the API key.
-let geminiToken = "AIzaSyBTvPbl_dgSRj014OTlDmjsH3v9jrKKggE";
+let geminiToken = import.meta.env.VITE_GEMINI_API_KEY || "";
 /*(async () => {
   try {
     const res = await fetch("http://localhost:3001/api/gemini-token");
