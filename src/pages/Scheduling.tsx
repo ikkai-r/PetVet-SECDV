@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Calendar, Clock, Bell, MapPin, Filter } from "lucide-react";
+import { Plus, Calendar, Clock, Bell, MapPin, Filter,  ChevronsUpDown, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -19,7 +19,6 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Check } from "lucide-react";
 import { cn } from "@/lib/utils"; 
 
 // Firebase
@@ -524,11 +523,14 @@ const Scheduling = () => {
             <Label htmlFor="vetId">Veterinary Clinic</Label>
             <Popover open={open} onOpenChange={setOpen}>
               <PopoverTrigger asChild>
-                <Button variant="outline" role="combobox" className="w-full justify-between">
-                  {newAppointment.vet?.trade_name || "Select clinic"}
+                <Button variant="outline" role="combobox" className="w-64 max-w-full justify-between">
+                   <span className="truncate  block text-left">
+                      {newAppointment.vet?.trade_name || "Select clinic"}
+                    </span>
+                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-full p-0">
+              <PopoverContent className="max-w-full p-1">
                 <Command>
                   <CommandInput placeholder="Search clinics..." />
                   <CommandList>
@@ -587,7 +589,7 @@ const Scheduling = () => {
 
       {/* Edit Appointment Dialog */}
       <Dialog open={showEditAppointment} onOpenChange={setShowEditAppointment}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-4xl max-w-xs rounded-lg sm:rounded-2xl">
           <DialogHeader>
             <DialogTitle>Edit Appointment</DialogTitle>
           </DialogHeader>
@@ -673,7 +675,8 @@ const Scheduling = () => {
               </div>
               {/* Vet */}
               <div>
-                <Label htmlFor="edit-vetId">Veterinarian</Label>
+                <Label htmlFor="edit-vetId">Veterinary Clinic</Label>
+                {/* <Label htmlFor="edit-vetId">Veterinarian</Label>
                 <Select
                   value={editingAppointment.vetId}
                   onValueChange={(value) => {
@@ -701,8 +704,58 @@ const Scheduling = () => {
                       </SelectItem>
                     ))}
                   </SelectContent>
-                </Select>
+                </Select> */}
+                <Popover open={open} onOpenChange={setOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-64 max-w-full justify-between"
+                    >
+                      <span className="truncate block text-left">
+                        {editingAppointment.vet?.trade_name || "Select vet"}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="max-w-full p-1">
+                    <Command>
+                      <CommandInput placeholder="Search clinics..." />
+                      <CommandList>
+                        <CommandEmpty>No clinic found.</CommandEmpty>
+                        {vetClinics.map((clinic) => (
+                          <CommandItem
+                            key={clinic.id}
+                            value={clinic.trade_name}
+                            onSelect={() => {
+                              setEditingAppointment({
+                                ...editingAppointment,
+                                vetId: clinic.id,
+                                vet: {
+                                  id: clinic.id,
+                                  trade_name: clinic.trade_name,
+                                  business_address: clinic.business_address,
+                                },
+                              });
+                              setOpen(false);
+                            }}
+                            className="break-words"
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                editingAppointment.vetId === clinic.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {clinic.trade_name}
+                          </CommandItem>
+                        ))}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
+
               {/* Notes */}
               <div>
                 <Label htmlFor="edit-notes">Notes</Label>
