@@ -11,6 +11,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import Navigation from "@/components/Navigation";
 import CalendarMaker from "@/services/calendarmaker";
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Check } from "lucide-react";
+import { cn } from "@/lib/utils"; 
 
 // Firebase
 import { auth } from "@/lib/firebase";
@@ -33,6 +43,7 @@ import {
 } from "@/types";
 
 const Scheduling = () => {
+  const [open, setOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [viewMode, setViewMode] = useState("calendar");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -510,29 +521,48 @@ const Scheduling = () => {
               </div>
             </div>
             <div>
-              <Label htmlFor="vetId">Veterinary Clinic</Label>
-              <Select
-                value={newAppointment.vetId}
-                onValueChange={(value) => {
-                  const selected = vetClinics.find((c) => c.id === value);
-                  setNewAppointment({
-                    ...newAppointment,
-                    vetId: value,
-                    vet: selected ? { id: selected.id, trade_name: selected.trade_name, business_address: selected.business_address } : { id: "", trade_name: "", business_address: "" }
-                  });
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select clinic" />
-                </SelectTrigger>
-                <SelectContent>
-                  {vetClinics.map((clinic) => (
-                    <SelectItem key={clinic.id} value={clinic.id}>
-                      {clinic.trade_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <Label htmlFor="vetId">Veterinary Clinic</Label>
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" className="w-full justify-between">
+                  {newAppointment.vet?.trade_name || "Select clinic"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Search clinics..." />
+                  <CommandList>
+                    <CommandEmpty>No clinic found.</CommandEmpty>
+                    {vetClinics.map((clinic) => (
+                      <CommandItem
+                        key={clinic.id}
+                        value={clinic.trade_name}
+                        onSelect={() => {
+                          setNewAppointment({
+                            ...newAppointment,
+                            vetId: clinic.id,
+                            vet: {
+                              id: clinic.id,
+                              trade_name: clinic.trade_name,
+                              business_address: clinic.business_address,
+                            },
+                          });
+                          setOpen(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            newAppointment.vetId === clinic.id ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        {clinic.trade_name}
+                      </CommandItem>
+                    ))}
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
             </div>
             <div>
               <Label htmlFor="notes">Notes</Label>
