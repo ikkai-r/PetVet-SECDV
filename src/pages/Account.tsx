@@ -14,6 +14,7 @@ import { db, auth, storage } from "@/lib/firebase"; // Import storage
 import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, getDoc} from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"; // Import storage functions
 import { logout } from '@/services/auth';
+import { uploadImage } from '@/lib/uploadImage'; 
 
 const Account = () => {
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -104,10 +105,9 @@ const Account = () => {
       let photoURL = formData.avatar;
 
       if (selectedImageFile) {
-        const storageRef = ref(storage, `avatars/${user.id}`);
-        await uploadBytes(storageRef, selectedImageFile);
-        photoURL = await getDownloadURL(storageRef);
+        photoURL = await uploadImage(selectedImageFile);
       }
+
 
       if (currentUser) {
         await updateProfile(currentUser, {
@@ -148,6 +148,46 @@ const Account = () => {
       setFormData(prev => ({ ...prev, avatar: previewURL }));
     }
   };
+
+  const uploadImage = async (file: File): Promise<string> => {
+    try {
+      const { cloudName, uploadPreset } = await fetchCloudinaryConfig();
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", uploadPreset);
+
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Image upload failed: ${res.status} ${res.statusText} - ${errorText}`);
+      }
+
+      const data = await res.json();
+      return data.secure_url;
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      throw error;
+    }
+  };
+
+  const fetchCloudinaryConfig = async () => {
+  try {
+    const res = await fetch('http://localhost:3001/api/cloudinary-params');
+    if (!res.ok) {
+      throw new Error(`Failed to fetch Cloudinary config: ${res.status} ${res.statusText}`);
+    }
+    const { cloudName, uploadPreset } = await res.json();
+    return { cloudName, uploadPreset };
+  } catch (error) {
+    console.error("Error fetching Cloudinary config:", error);
+    throw new Error("Failed to get Cloudinary configuration from server");
+  }
+};
 
   const handleSaveSettings = () => {
     console.log("Saving settings:", settings);
