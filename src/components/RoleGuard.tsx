@@ -56,36 +56,6 @@ export const RoleGuard = ({
     );
   }
 
-  if (requireVerification && !user.isVerified) {
-    return fallback || (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <AlertTriangle className="w-12 h-12 mx-auto text-warning mb-4" />
-            <CardTitle>Account Verification Required</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-center text-muted-foreground">
-              Your account needs to be verified before you can access this page.
-              {user.role === 'vet' && (
-                <>
-                  <br /><br />
-                  Please wait for an administrator to verify your veterinarian credentials.
-                </>
-              )}
-              {user.role === 'admin' && (
-                <>
-                  <br /><br />
-                  Please contact a super administrator to verify your admin account.
-                </>
-              )}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return <>{children}</>;
 };
 

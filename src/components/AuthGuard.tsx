@@ -26,6 +26,7 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
   const [vetLicenseNumber, setVetLicenseNumber] = useState('');
   const [specialization, setSpecialization] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string>('');
 
   if (loading) {
     return (
@@ -39,6 +40,7 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       setIsSubmitting(true);
+      setError(''); // Clear previous errors
 
       try {
         if (isSignUp) {
@@ -64,17 +66,24 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
           });
         }
       } catch (error: any) {
-        toast({
-          title: "Authentication Error",
-          description: error.message,
-          variant: "destructive",
-        });
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+          setError('Invalid username/password');
+        } else if (error.code === 'auth/email-already-in-use') {
+          setError('Email already in use');
+        } else if (error.code === 'auth/weak-password') {
+          setError('Password should be at least 6 characters');
+        } else if (error.code === 'auth/invalid-email') {
+          setError('Invalid email address');
+        } else {
+          setError('Error: please try again');
+        }
       } finally {
         setIsSubmitting(false);
       }
     };
 
     const handleGoogleSignIn = async () => {
+      setError(''); // Clear previous errors
       try {
         await signInWithGoogle(selectedRole);
         toast({
@@ -82,11 +91,7 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
           description: "You've been signed in with Google.",
         });
       } catch (error: any) {
-        toast({
-          title: "Authentication Error",
-          description: error.message,
-          variant: "destructive",
-        });
+        setError('Error: please try again');
       }
     };
 
@@ -217,6 +222,12 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
                 />
               </div>
 
+              {error && (
+                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
+                  {error}
+                </p>
+              )}
+
               <Button 
                 type="submit" 
                 className="w-full" 
@@ -265,7 +276,10 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
             <Button
               variant="link"
               className="w-full"
-              onClick={() => setIsSignUp(!isSignUp)}
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setError(''); // Clear errors when switching between sign up/sign in
+              }}
             >
               {isSignUp 
                 ? 'Already have an account? Sign in' 
