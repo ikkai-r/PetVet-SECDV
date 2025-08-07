@@ -11,6 +11,10 @@ import { auth, db} from '@/lib/firebase';
 import { User, UserRole } from '@/types';
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { validatePassword } from '@/lib/passwordValidation';
+import { verifyPasswordSecurity } from '@/lib/passwordSecurity';
+
+// Verify our security implementation on module load
+verifyPasswordSecurity();
 
 interface SignUpData {
   email: string;
