@@ -232,7 +232,10 @@ const VetFinder = () => {
           zoom={12}
           scrollWheelZoom={true}
           className="h-full w-full rounded-2xl"
-          whenReady={(map) => setMap(map.target)}
+          ref={(instance) => {
+            // instance may be null on unmount
+            if (instance) setMap(instance);
+          }}
         >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

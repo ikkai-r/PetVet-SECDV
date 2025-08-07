@@ -1,14 +1,48 @@
-import { Home, MapPin, Heart, Calendar, MessageSquare, User } from "lucide-react";
+import { Home, MapPin, Heart, Calendar, MessageSquare, User, Stethoscope, Shield, Users } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 const Navigation = () => {
   const location = useLocation();
+  const { user } = useAuth();
 
-  const navItems = [
+  // Base navigation items for all users
+  const baseNavItems = [
     { path: "/", icon: Home, label: "Home" },
-    { path: "/pets", icon: Heart, label: "Pets" },
     { path: "/account", icon: User, label: "Account" },
   ];
+
+  // Role-specific navigation items
+  const petOwnerItems = [
+    { path: "/pets", icon: Heart, label: "Pets" },
+    { path: "/vet-finder", icon: MapPin, label: "Find Vet" },
+    { path: "/schedule", icon: Calendar, label: "Schedule" },
+  ];
+
+  const vetItems = [
+    { path: "/vetdb", icon: Stethoscope, label: "Dashboard" },
+  ];
+
+  const adminItems = [
+    { path: "/admindb", icon: Shield, label: "Admin" },
+  ];
+
+  // Combine navigation items based on user role
+  let navItems = [...baseNavItems];
+  
+  if (user) {
+    switch (user.role) {
+      case 'pet_owner':
+        navItems = [baseNavItems[0], ...petOwnerItems, baseNavItems[1]];
+        break;
+      case 'vet':
+        navItems = [baseNavItems[0], ...vetItems, baseNavItems[1]];
+        break;
+      case 'admin':
+        navItems = [baseNavItems[0], ...adminItems, baseNavItems[1]];
+        break;
+    }
+  }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border px-4 py-2 z-50">

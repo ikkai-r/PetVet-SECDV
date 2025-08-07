@@ -46,13 +46,21 @@ export interface VaccinationRecord {
 //   color: string;
 // }
 
+export type UserRole = 'pet_owner' | 'vet' | 'admin';
+
 export interface User {
   uid: string;
   email: string;
   displayName?: string;
   photoURL?: string;
   phoneNumber?: string;
-  role: string;
+  role: UserRole;
+  // Additional role-specific fields
+  vetLicenseNumber?: string; // For vets only
+  specialization?: string; // For vets only
+  clinicId?: string; // For vets only
+  isVerified?: boolean; // For vets and admins
+  permissions?: string[]; // For admins
   // AccountStats?: AccountStat[];
 }
 

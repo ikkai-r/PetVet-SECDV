@@ -7,7 +7,9 @@ import { Label } from '@/components/ui/label';
 import { useState } from 'react';
 import { signIn, signUp, signInWithGoogle } from '@/services/auth';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, User, Stethoscope, Shield } from 'lucide-react';
+import { UserRole } from '@/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface AuthGuardProps {
   children: ReactNode;
@@ -19,6 +21,10 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [selectedRole, setSelectedRole] = useState<UserRole>('pet_owner');
+  const [vetLicenseNumber, setVetLicenseNumber] = useState('');
+  const [specialization, setSpecialization] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (loading) {
@@ -36,7 +42,16 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
 
       try {
         if (isSignUp) {
-          await signUp(email, password);
+          await signUp({
+            email,
+            password,
+            role: selectedRole,
+            displayName,
+            ...(selectedRole === 'vet' && {
+              vetLicenseNumber,
+              specialization,
+            }),
+          });
           toast({
             title: "Account created successfully!",
             description: "Welcome to PetVet!",
@@ -61,7 +76,7 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
 
     const handleGoogleSignIn = async () => {
       try {
-        await signInWithGoogle();
+        await signInWithGoogle(selectedRole);
         toast({
           title: "Welcome!",
           description: "You've been signed in with Google.",
@@ -72,6 +87,24 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
           description: error.message,
           variant: "destructive",
         });
+      }
+    };
+
+    const getRoleIcon = (role: UserRole) => {
+      switch (role) {
+        case 'pet_owner':
+          return <User className="w-4 h-4" />;
+        case 'vet':
+          return <Stethoscope className="w-4 h-4" />;
+      }
+    };
+
+    const getRoleDescription = (role: UserRole) => {
+      switch (role) {
+        case 'pet_owner':
+          return 'Manage your pets and schedule appointments';
+        case 'vet':
+          return 'Provide vet services and manage appointments';
       }
     };
 
@@ -88,6 +121,81 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
           </CardHeader>
           <CardContent className="space-y-4">
             <form onSubmit={handleSubmit} className="space-y-4">
+              {isSignUp && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Account Type</Label>
+                    <Select value={selectedRole} onValueChange={(value: UserRole) => setSelectedRole(value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pet_owner">
+                          <div className="flex items-center gap-2">
+                            {getRoleIcon('pet_owner')}
+                            <div>
+                              <div className="font-medium">Pet Owner</div>
+                              <div className="text-sm text-muted-foreground">
+                                {getRoleDescription('pet_owner')}
+                              </div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="vet">
+                          <div className="flex items-center gap-2">
+                            {getRoleIcon('vet')}
+                            <div>
+                              <div className="font-medium">Veterinarian</div>
+                              <div className="text-sm text-muted-foreground">
+                                {getRoleDescription('vet')}
+                              </div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                   
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="displayName">Name</Label>
+                    <Input
+                      id="displayName"
+                      type="text"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  {selectedRole === 'vet' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="vetLicense">Veterinary License Number</Label>
+                        <Input
+                          id="vetLicense"
+                          type="text"
+                          value={vetLicenseNumber}
+                          onChange={(e) => setVetLicenseNumber(e.target.value)}
+                          placeholder="Enter your license number"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="specialization">Specialization</Label>
+                        <Input
+                          id="specialization"
+                          type="text"
+                          value={specialization}
+                          onChange={(e) => setSpecialization(e.target.value)}
+                          placeholder="e.g., Small Animal Medicine, Surgery"
+                        />
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -108,6 +216,7 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
                   required
                 />
               </div>
+
               <Button 
                 type="submit" 
                 className="w-full" 
@@ -117,7 +226,7 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
                 {isSignUp ? 'Create Account' : 'Sign In'}
               </Button>
             </form>
-            
+            {/* Divider 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
@@ -129,6 +238,22 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
               </div>
             </div>
             
+            {isSignUp && (
+              <div className="space-y-2">
+                <Label>Google Sign-up Role</Label>
+                <Select value={selectedRole} onValueChange={(value: UserRole) => setSelectedRole(value)}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pet_owner">Pet Owner</SelectItem>
+                    <SelectItem value="vet">Veterinarian</SelectItem>
+                    <SelectItem value="admin">Administrator</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
             <Button 
               variant="outline" 
               className="w-full" 
@@ -136,7 +261,7 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
             >
               Google
             </Button>
-            
+            */}
             <Button
               variant="link"
               className="w-full"

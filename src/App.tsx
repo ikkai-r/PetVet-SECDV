@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AuthGuard } from "@/components/AuthGuard";
+import { PetOwnerGuard, VetGuard, AdminGuard, VetOrAdminGuard } from "@/components/RoleGuard";
 import { SecurityProvider } from "@/components/SecurityProvider";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -27,13 +28,56 @@ const App = () => (
           <BrowserRouter>
             <AuthGuard>
               <Routes>
+                {/* Public routes (accessible to all authenticated users) */}
                 <Route path="/" element={<Index />} />
-                <Route path="/vet-finder" element={<VetFinder />} />
-                <Route path="/pets" element={<PetManagement />} />
-                <Route path="/schedule" element={<Scheduling />} />
                 <Route path="/account" element={<Account />} />
-                <Route path="/vetdb" element={<VetDashboard />} />
-                <Route path="/admindb" element={<AdminDashboard />} />
+                
+                {/* Pet Owner routes */}
+                <Route 
+                  path="/vet-finder" 
+                  element={
+                    <PetOwnerGuard>
+                      <VetFinder />
+                    </PetOwnerGuard>
+                  } 
+                />
+                <Route 
+                  path="/pets" 
+                  element={
+                    <PetOwnerGuard>
+                      <PetManagement />
+                    </PetOwnerGuard>
+                  } 
+                />
+                <Route 
+                  path="/schedule" 
+                  element={
+                    <PetOwnerGuard>
+                      <Scheduling />
+                    </PetOwnerGuard>
+                  } 
+                />
+                
+                {/* Vet routes */}
+                <Route 
+                  path="/vetdb" 
+                  element={
+                    <VetGuard>
+                      <VetDashboard />
+                    </VetGuard>
+                  } 
+                />
+                
+                {/* Admin routes */}
+                <Route 
+                  path="/admindb" 
+                  element={
+                    <AdminGuard>
+                      <AdminDashboard />
+                    </AdminGuard>
+                  } 
+                />
+                
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AuthGuard>
