@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import { validateSecurityPolicy } from './validationSecurity';
+
+// Verify our validation security policy on module load
+validateSecurityPolicy();
 
 // Pet validation schema
 export const petSchema = z.object({
@@ -83,19 +87,70 @@ export const userProfileSchema = z.object({
     .optional(),
 });
 
-// Sanitization function to prevent XSS
-export const sanitizeInput = (input: string): string => {
-  return input
-    .replace(/[<>]/g, '') // Remove angle brackets
-    .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/on\w+=/gi, '') // Remove event handlers
-    .trim();
+// Strict input validation - REJECT invalid input, do NOT sanitize
+// Security policy: All validation failures result in input rejection
+export const validateStrictInput = (input: string, fieldName: string = "Input"): { isValid: boolean; error?: string } => {
+  // Check for potentially malicious content
+  if (input.includes('<') || input.includes('>')) {
+    return { isValid: false, error: `${fieldName} contains invalid characters (< >)` };
+  }
+  
+  if (input.toLowerCase().includes('javascript:')) {
+    return { isValid: false, error: `${fieldName} contains invalid content` };
+  }
+  
+  if (/on\w+=/i.test(input)) {
+    return { isValid: false, error: `${fieldName} contains invalid event handlers` };
+  }
+  
+  // Check for script tags
+  if (/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi.test(input)) {
+    return { isValid: false, error: `${fieldName} contains script tags` };
+  }
+  
+  // Check for other potentially dangerous tags
+  if (/<(iframe|object|embed|link|style|meta)\b/i.test(input)) {
+    return { isValid: false, error: `${fieldName} contains potentially dangerous HTML tags` };
+  }
+  
+  return { isValid: true };
 };
 
-// File upload validation
-export const validateImageFile = (file: File): boolean => {
+// Email validation with strict security checks
+export const validateEmail = (email: string): { isValid: boolean; error?: string } => {
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  
+  if (!emailRegex.test(email)) {
+    return { isValid: false, error: "Invalid email format" };
+  }
+  
+  // Additional security check
+  const securityCheck = validateStrictInput(email, "Email");
+  if (!securityCheck.isValid) {
+    return securityCheck;
+  }
+  
+  return { isValid: true };
+};
+
+// File upload validation with strict security checks
+export const validateImageFile = (file: File): { isValid: boolean; error?: string } => {
   const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
   const maxSize = 5 * 1024 * 1024; // 5MB
   
-  return allowedTypes.includes(file.type) && file.size <= maxSize;
+  if (!allowedTypes.includes(file.type)) {
+    return { isValid: false, error: 'File type not allowed. Only JPEG, PNG, and WebP are supported.' };
+  }
+  
+  if (file.size > maxSize) {
+    return { isValid: false, error: 'File size too large. Maximum size is 5MB.' };
+  }
+  
+  // Validate filename for malicious content
+  const fileNameCheck = validateStrictInput(file.name, 'Filename');
+  if (!fileNameCheck.isValid) {
+    return fileNameCheck;
+  }
+  
+  return { isValid: true };
 };

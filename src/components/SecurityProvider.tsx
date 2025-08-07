@@ -1,9 +1,10 @@
 import { createContext, useContext, ReactNode } from 'react';
-import { sanitizeInput } from '@/lib/validation';
+import { validateStrictInput, validateEmail } from '@/lib/validation';
 
 interface SecurityContextType {
-  sanitizeInput: (input: string) => string;
-  validateFileUpload: (file: File) => boolean;
+  validateInput: (input: string, fieldName?: string) => { isValid: boolean; error?: string };
+  validateEmail: (email: string) => { isValid: boolean; error?: string };
+  validateFileUpload: (file: File) => { isValid: boolean; error?: string };
   isRateLimited: () => boolean;
 }
 
@@ -42,16 +43,31 @@ const isRateLimited = (): boolean => {
   return false;
 };
 
-const validateFileUpload = (file: File): boolean => {
+const validateFileUpload = (file: File): { isValid: boolean; error?: string } => {
   const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
   const maxSize = 5 * 1024 * 1024; // 5MB
   
-  return allowedTypes.includes(file.type) && file.size <= maxSize;
+  if (!allowedTypes.includes(file.type)) {
+    return { isValid: false, error: 'File type not allowed. Only JPEG, PNG, and WebP are supported.' };
+  }
+  
+  if (file.size > maxSize) {
+    return { isValid: false, error: 'File size too large. Maximum size is 5MB.' };
+  }
+  
+  // Additional filename validation
+  const fileNameCheck = validateStrictInput(file.name, 'Filename');
+  if (!fileNameCheck.isValid) {
+    return fileNameCheck;
+  }
+  
+  return { isValid: true };
 };
 
 export const SecurityProvider = ({ children }: SecurityProviderProps) => {
   const value = {
-    sanitizeInput,
+    validateInput: validateStrictInput,
+    validateEmail,
     validateFileUpload,
     isRateLimited,
   };
