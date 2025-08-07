@@ -15,8 +15,6 @@ const Navigation = () => {
   // Role-specific navigation items
   const petOwnerItems = [
     { path: "/pets", icon: Heart, label: "Pets" },
-    { path: "/vet-finder", icon: MapPin, label: "Find Vet" },
-    { path: "/schedule", icon: Calendar, label: "Schedule" },
   ];
 
   const vetItems = [

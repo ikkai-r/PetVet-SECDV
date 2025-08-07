@@ -10,6 +10,7 @@ import {
 import { auth, db} from '@/lib/firebase';
 import { User, UserRole } from '@/types';
 import { doc, setDoc, getDoc } from "firebase/firestore";
+import { validatePassword } from '@/lib/passwordValidation';
 
 interface SignUpData {
   email: string;
@@ -22,6 +23,12 @@ interface SignUpData {
 
 export const signUp = async (data: SignUpData): Promise<User> => {
   const { email, password, role, displayName, vetLicenseNumber, specialization } = data;
+  
+  const passwordValidation = validatePassword(password);
+  if (!passwordValidation.isValid) {
+    throw new Error(passwordValidation.errors[0]); 
+  }
+  
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
   const user = userCredential.user;
 

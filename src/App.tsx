@@ -9,9 +9,7 @@ import { PetOwnerGuard, VetGuard, AdminGuard, VetOrAdminGuard } from "@/componen
 import { SecurityProvider } from "@/components/SecurityProvider";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import VetFinder from "./pages/VetFinder";
 import PetManagement from "./pages/PetManagement";
-import Scheduling from "./pages/Scheduling";
 import Account from "./pages/Account";
 import VetDashboard from "./pages/VetDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -33,14 +31,7 @@ const App = () => (
                 <Route path="/account" element={<Account />} />
                 
                 {/* Pet Owner routes */}
-                <Route 
-                  path="/vet-finder" 
-                  element={
-                    <PetOwnerGuard>
-                      <VetFinder />
-                    </PetOwnerGuard>
-                  } 
-                />
+               
                 <Route 
                   path="/pets" 
                   element={
@@ -49,14 +40,7 @@ const App = () => (
                     </PetOwnerGuard>
                   } 
                 />
-                <Route 
-                  path="/schedule" 
-                  element={
-                    <PetOwnerGuard>
-                      <Scheduling />
-                    </PetOwnerGuard>
-                  } 
-                />
+            
                 
                 {/* Vet routes */}
                 <Route 
