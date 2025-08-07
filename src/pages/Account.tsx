@@ -14,7 +14,6 @@ import { db, auth, storage } from "@/lib/firebase"; // Import storage
 import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, getDoc} from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"; // Import storage functions
 import { logout } from '@/services/auth';
-import { uploadImage } from '@/lib/uploadImage'; 
 
 const Account = () => {
   const [showEditProfile, setShowEditProfile] = useState(false);

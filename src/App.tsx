@@ -12,6 +12,8 @@ import VetFinder from "./pages/VetFinder";
 import PetManagement from "./pages/PetManagement";
 import Scheduling from "./pages/Scheduling";
 import Account from "./pages/Account";
+import VetDashboard from "./pages/VetDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +32,8 @@ const App = () => (
                 <Route path="/pets" element={<PetManagement />} />
                 <Route path="/schedule" element={<Scheduling />} />
                 <Route path="/account" element={<Account />} />
+                <Route path="/vetdb" element={<VetDashboard />} />
+                <Route path="/admindb" element={<AdminDashboard />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AuthGuard>
