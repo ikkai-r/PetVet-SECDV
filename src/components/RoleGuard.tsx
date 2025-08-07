@@ -48,10 +48,7 @@ export const RoleGuard = ({
           <CardContent>
             <p className="text-center text-muted-foreground">
               You don't have permission to access this page.
-              <br />
-              Required role: {allowedRoles.join(' or ')}
-              <br />
-              Your role: {user.role}
+              Go back to the <a href="/" className="text-primary underline">home page</a>.
             </p>
           </CardContent>
         </Card>
