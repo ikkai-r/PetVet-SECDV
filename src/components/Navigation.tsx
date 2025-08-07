@@ -7,9 +7,6 @@ const Navigation = () => {
   const navItems = [
     { path: "/", icon: Home, label: "Home" },
     { path: "/pets", icon: Heart, label: "Pets" },
-    { path: "/vet-finder", icon: MapPin, label: "Clinics" },
-    { path: "/schedule", icon: Calendar, label: "Schedule" },
-    { path: "/dr-purr", icon: MessageSquare, label: "Dr. Purr" },
     { path: "/account", icon: User, label: "Account" },
   ];
 

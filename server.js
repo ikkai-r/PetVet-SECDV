@@ -13,13 +13,6 @@ const app = express();
 app.use(cors());
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// API routes
-app.get('/api/gemini-token', (req, res) => {
-  const token = process.env.GEMINI_API_KEY;
-  if (!token) return res.status(500).json({ error: 'Missing GEMINI_API_KEY' });
-  res.json({ token });
-});
-
 app.get('/api/cloudinary-params', (req, res) => {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
   const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;

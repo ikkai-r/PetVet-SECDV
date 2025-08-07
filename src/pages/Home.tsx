@@ -34,11 +34,6 @@ const Home = () => {
 
   const user = auth.currentUser;
   const [greeting, setGreeting] = useState("Good day!");
-  const quickActions = [
-    { title: "Find Nearby Vets", icon: MapPin, path: "/vet-finder", color: "bg-primary" },
-    { title: "Chat with Dr. Purr", icon: MessageSquare, path: "/dr-purr", color: "bg-accent" },
-    { title: "Add Appointment", icon: Calendar, path: "/schedule", color: "bg-secondary" },
-  ];
 
 useEffect(() => {
     if (!user?.uid) return;
@@ -106,7 +101,7 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* Quick Actions */}
+      {/* Quick Actions 
       <div className="p-6">
         <h2 className="font-semibold mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 gap-3">
@@ -124,6 +119,8 @@ useEffect(() => {
           ))}
         </div>
       </div>
+
+      */}
 
       {/* My Pets */}
       <div className="p-6">
@@ -152,7 +149,7 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* Upcoming Reminders */}
+      {/* Upcoming Reminders 
       <div className="p-6">
         <h2 className="font-semibold mb-4">Upcoming Reminders</h2>
         {reminders.filter(r => new Date(r.date).getTime() > Date.now()).length > 0 ? (
@@ -193,7 +190,7 @@ useEffect(() => {
           <p className="text-sm text-muted-foreground">No upcoming reminders found.</p>
         )}
       </div>
-
+*/}
 
       <Navigation />
     </div>
