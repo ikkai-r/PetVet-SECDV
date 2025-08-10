@@ -36,8 +36,8 @@ export interface AccountLockout {
 // Security configuration
 export const SECURITY_CONFIG = {
   MAX_FAILED_ATTEMPTS: 3,
-  BASE_LOCKOUT_MINUTES: 15,    // 15 minutes base lockout
-  MAX_LOCKOUT_MINUTES: 120,    // 2 hours maximum lockout
+  BASE_LOCKOUT_MINUTES: 3,     // 3 minutes base lockout
+  MAX_LOCKOUT_MINUTES: 5,      // 5 minutes maximum lockout
   ATTEMPT_WINDOW_MINUTES: 60,  // Failed attempts expire after 1 hour
   PROGRESSIVE_MULTIPLIER: 2,   // Each subsequent lockout doubles duration
 } as const;
