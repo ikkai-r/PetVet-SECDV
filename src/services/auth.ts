@@ -5,16 +5,26 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  AuthError
 } from 'firebase/auth';
 import { auth, db} from '@/lib/firebase';
 import { User, UserRole } from '@/types';
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { validatePassword } from '@/lib/passwordValidation';
 import { verifyPasswordSecurity } from '@/lib/passwordSecurity';
+import { 
+  isAccountLocked, 
+  recordFailedAttempt, 
+  clearFailedAttempts,
+  getSecurityAudit 
+} from '@/lib/accountSecurity';
 
 // Verify our security implementation on module load
 verifyPasswordSecurity();
+
+// Log security configuration
+console.log('🔐 Account Security Configuration:', getSecurityAudit());
 
 interface SignUpData {
   email: string;
@@ -85,25 +95,78 @@ const getUserFromFirestore = async (uid: string): Promise<Partial<User> | null> 
 };
 
 export const signIn = async (email: string, password: string): Promise<User> => {
-  const userCredential = await signInWithEmailAndPassword(auth, email, password);
-  const firebaseUser = userCredential.user;
-  
-  // Get user data from Firestore
-  const userData = await getUserFromFirestore(firebaseUser.uid);
-  
-  return {
-    uid: firebaseUser.uid,
-    email: firebaseUser.email!,
-    displayName: firebaseUser.displayName || userData?.displayName,
-    photoURL: firebaseUser.photoURL || userData?.photoURL,
-    role: userData?.role || 'pet_owner', // Default to pet_owner if no role found
-    ...(userData?.role === 'vet' && {
-      vetLicenseNumber: userData.vetLicenseNumber,
-      specialization: userData.specialization,
-    }),
-    isVerified: userData?.isVerified || false,
-    permissions: userData?.permissions,
-  };
+  // Check if account is locked before attempting sign in
+  const lockStatus = await isAccountLocked(email);
+
+  console.log(lockStatus);
+  if (lockStatus.isLocked) {
+    const error = {
+      code: 'auth/account-locked',
+      message: `Account is temporarily locked due to multiple failed login attempts. ` +
+               `Please try again in ${lockStatus.remainingMinutes} minutes.`
+    };
+    throw error;
+  }
+
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const firebaseUser = userCredential.user;
+    
+    // Clear any failed attempts on successful login
+    await clearFailedAttempts(email);
+    
+    // Get user data from Firestore
+    const userData = await getUserFromFirestore(firebaseUser.uid);
+    
+    return {
+      uid: firebaseUser.uid,
+      email: firebaseUser.email!,
+      displayName: firebaseUser.displayName || userData?.displayName,
+      photoURL: firebaseUser.photoURL || userData?.photoURL,
+      role: userData?.role || 'pet_owner', // Default to pet_owner if no role found
+      ...(userData?.role === 'vet' && {
+        vetLicenseNumber: userData.vetLicenseNumber,
+        specialization: userData.specialization,
+      }),
+      isVerified: userData?.isVerified || false,
+      permissions: userData?.permissions,
+    };
+  } catch (error: any) {
+    console.log('🔍 Auth Error:', error.code, error.message);
+    
+    // Record failed attempt for authentication errors
+    if (error.code === 'auth/user-not-found' || 
+        error.code === 'auth/wrong-password' || 
+        error.code === 'auth/invalid-credential' ||
+        error.code === 'auth/invalid-email') {
+      
+      console.log('📝 Recording failed attempt for:', email);
+      await recordFailedAttempt(email);
+      
+      // Check if this failed attempt triggers a lockout
+      const newLockStatus = await isAccountLocked(email);
+      console.log('🔒 Lock status after failed attempt:', newLockStatus);
+      
+      if (newLockStatus.isLocked) {
+        const lockoutError = {
+          code: 'auth/account-locked',
+          message: `Too many failed login attempts. Account is now locked for ${newLockStatus.remainingMinutes} minutes.`
+        };
+        console.log('🚫 Throwing lockout error:', lockoutError);
+        throw lockoutError;
+      }
+    }
+    
+    // Handle Firebase rate limiting with custom message
+    if (error.code === 'auth/too-many-requests') {
+      throw {
+        code: 'auth/too-many-requests',
+        message: 'Error: Too many requests, please try again later. Firebase has temporarily blocked further attempts from your location for security reasons.'
+      };
+    }
+    
+    throw error;
+  }
 };
 
 export const signInWithGoogle = async (role: UserRole = 'pet_owner'): Promise<User> => {

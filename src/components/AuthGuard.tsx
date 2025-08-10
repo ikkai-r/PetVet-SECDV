@@ -76,7 +76,11 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
           });
         }
       } catch (error: any) {
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        if (error.code === 'auth/account-locked') {
+          setError(error.message);
+        } else if (error.code === 'auth/too-many-requests') {
+          setError(error.message);
+        } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
           setError('Invalid username/password');
         } else if (error.code === 'auth/email-already-in-use') {
           setError('Email already in use');

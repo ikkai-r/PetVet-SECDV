@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brute Force Protection Test</title>
+    <script type="module">
+        // Import Firebase modules - update these with your Firebase config
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js';
+        import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs, Timestamp, deleteDoc } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js';
+        import { getAuth, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js';
+
+        // Your Firebase config - replace with your actual config
+        const firebaseConfig = {
+            // Add your Firebase config here
+            apiKey: "your-api-key",
+            authDomain: "your-project.firebaseapp.com",
+            projectId: "your-project-id",
+            storageBucket: "your-project.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "your-app-id"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Security configuration
+        const SECURITY_CONFIG = {
+            MAX_FAILED_ATTEMPTS: 3,
+            BASE_LOCKOUT_MINUTES: 15,
+            MAX_LOCKOUT_MINUTES: 120,
+            ATTEMPT_WINDOW_MINUTES: 60,
+            PROGRESSIVE_MULTIPLIER: 2,
+        };
+
+        // Test functions
+        async function recordFailedAttempt(email) {
+            try {
+                console.log('🚨 Recording failed attempt for:', email);
+                const attemptId = `${email}_${Date.now()}`;
+                const attemptDoc = doc(db, 'loginAttempts', attemptId);
+                
+                const attempt = {
+                    email: email.toLowerCase(),
+                    timestamp: Timestamp.now(),
+                    attemptNumber: 1,
+                };
+                
+                console.log('💾 Saving attempt:', attempt);
+                await setDoc(attemptDoc, attempt);
+                console.log('✅ Failed attempt recorded successfully');
+                
+                await checkAndLockAccount(email);
+                
+            } catch (error) {
+                console.error('❌ Error recording failed attempt:', error);
+            }
+        }
+
+        async function checkAndLockAccount(email) {
+            console.log('🔍 Checking if account should be locked:', email);
+            const recentAttempts = await getRecentFailedAttempts(email);
+            console.log(`📊 Found ${recentAttempts.length} recent attempts (max: ${SECURITY_CONFIG.MAX_FAILED_ATTEMPTS})`);
+            
+            if (recentAttempts.length >= SECURITY_CONFIG.MAX_FAILED_ATTEMPTS) {
+                console.log('🔒 Locking account due to too many attempts');
+                await lockAccount(email, recentAttempts.length);
+            } else {
+                console.log('✅ Account not locked yet');
+            }
+        }
+
+        async function getRecentFailedAttempts(email) {
+            const cutoffTime = new Date();
+            cutoffTime.setMinutes(cutoffTime.getMinutes() - SECURITY_CONFIG.ATTEMPT_WINDOW_MINUTES);
+            
+            console.log('🔍 Getting recent failed attempts for:', email);
+            console.log('🕐 Cutoff time:', cutoffTime.toISOString());
+            
+            const attemptsRef = collection(db, 'loginAttempts');
+            const q = query(
+                attemptsRef,
+                where('email', '==', email.toLowerCase()),
+                where('timestamp', '>', Timestamp.fromDate(cutoffTime))
+            );
+            
+            const snapshot = await getDocs(q);
+            const attempts = snapshot.docs.map(doc => doc.data());
+            
+            console.log(`📋 Found ${attempts.length} recent attempts`);
+            return attempts;
+        }
+
+        async function lockAccount(email, failedAttempts) {
+            try {
+                const lockoutDoc = doc(db, 'accountLockouts', email.toLowerCase());
+                
+                const lockoutMinutes = Math.min(
+                    SECURITY_CONFIG.BASE_LOCKOUT_MINUTES * Math.pow(SECURITY_CONFIG.PROGRESSIVE_MULTIPLIER, 0),
+                    SECURITY_CONFIG.MAX_LOCKOUT_MINUTES
+                );
+                
+                const lockedAt = Timestamp.now();
+                const unlockAt = Timestamp.fromDate(new Date(Date.now() + (lockoutMinutes * 60 * 1000)));
+                
+                const lockout = {
+                    email: email.toLowerCase(),
+                    lockedAt,
+                    unlockAt,
+                    failedAttempts,
+                    lockoutCount: 1,
+                };
+                
+                await setDoc(lockoutDoc, lockout);
+                console.warn(`🔒 Account locked: ${email} for ${lockoutMinutes} minutes`);
+                
+            } catch (error) {
+                console.error('Error locking account:', error);
+            }
+        }
+
+        async function isAccountLocked(email) {
+            try {
+                const lockoutDoc = doc(db, 'accountLockouts', email.toLowerCase());
+                const snapshot = await getDoc(lockoutDoc);
+                
+                if (!snapshot.exists()) {
+                    return { isLocked: false };
+                }
+                
+                const lockout = snapshot.data();
+                const now = new Date();
+                const unlockTime = lockout.unlockAt.toDate();
+                
+                if (now >= unlockTime) {
+                    await deleteDoc(lockoutDoc);
+                    return { isLocked: false };
+                }
+                
+                const remainingMs = unlockTime.getTime() - now.getTime();
+                const remainingMinutes = Math.ceil(remainingMs / (1000 * 60));
+                
+                return {
+                    isLocked: true,
+                    unlockAt: unlockTime,
+                    remainingMinutes,
+                    lockoutCount: lockout.lockoutCount,
+                };
+                
+            } catch (error) {
+                console.error('Error checking account lockout:', error);
+                return { isLocked: false };
+            }
+        }
+
+        async function clearFailedAttempts(email) {
+            try {
+                // Clear lockout
+                const lockoutDoc = doc(db, 'accountLockouts', email.toLowerCase());
+                await deleteDoc(lockoutDoc);
+                
+                // Clear attempts
+                const attemptsRef = collection(db, 'loginAttempts');
+                const q = query(attemptsRef, where('email', '==', email.toLowerCase()));
+                const snapshot = await getDocs(q);
+                
+                const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+                await Promise.all(deletePromises);
+                
+                console.log('🧹 Cleared failed attempts');
+            } catch (error) {
+                console.error('Error clearing failed attempts:', error);
+            }
+        }
+
+        // Test function
+        async function testBruteForceProtection() {
+            const testEmail = document.getElementById('email').value || 'test-brute-force@example.com';
+            const logElement = document.getElementById('log');
+            
+            function log(message) {
+                console.log(message);
+                logElement.innerHTML += message + '\n';
+                logElement.scrollTop = logElement.scrollHeight;
+            }
+            
+            log('🧪 Testing Brute Force Protection for: ' + testEmail);
+            log('Configuration: ' + JSON.stringify(SECURITY_CONFIG, null, 2));
+            
+            try {
+                // Clear any existing attempts first
+                await clearFailedAttempts(testEmail);
+                log('✅ Cleared existing attempts');
+                
+                // Check initial status
+                let status = await isAccountLocked(testEmail);
+                log('Initial status: ' + JSON.stringify(status));
+                
+                // Record multiple failed attempts
+                for (let i = 1; i <= 6; i++) {
+                    log(`\n--- Recording failed attempt #${i} ---`);
+                    await recordFailedAttempt(testEmail);
+                    
+                    // Check status after each attempt
+                    status = await isAccountLocked(testEmail);
+                    log(`After ${i} attempts: ` + JSON.stringify(status));
+                    
+                    if (status.isLocked) {
+                        log(`🔒 Account locked after ${i} attempts!`);
+                        log(`Unlock time: ${status.unlockAt}`);
+                        log(`Remaining minutes: ${status.remainingMinutes}`);
+                        break;
+                    }
+                }
+                
+                log('\n✅ Test completed successfully!');
+                
+            } catch (error) {
+                log('❌ Test failed: ' + error.message);
+                console.error(error);
+            }
+        }
+
+        // Test actual login function
+        async function testActualLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const logElement = document.getElementById('loginLog');
+            
+            function log(message) {
+                console.log(message);
+                logElement.innerHTML += message + '\n';
+                logElement.scrollTop = logElement.scrollHeight;
+            }
+            
+            try {
+                // Check if account is locked first
+                const lockStatus = await isAccountLocked(email);
+                if (lockStatus.isLocked) {
+                    log(`🔒 Account is locked! Remaining: ${lockStatus.remainingMinutes} minutes`);
+                    return;
+                }
+                
+                log('🔐 Attempting login...');
+                await signInWithEmailAndPassword(auth, email, password);
+                log('✅ Login successful!');
+                
+                // Clear attempts on success
+                await clearFailedAttempts(email);
+                
+            } catch (error) {
+                log('❌ Login failed: ' + (error.message || error.code));
+                
+                // Record failed attempt
+                if (error.code === 'auth/user-not-found' || 
+                    error.code === 'auth/wrong-password' || 
+                    error.code === 'auth/invalid-credential' ||
+                    error.code === 'auth/invalid-email') {
+                    
+                    log('📝 Recording failed attempt...');
+                    await recordFailedAttempt(email);
+                    
+                    // Check if now locked
+                    const newLockStatus = await isAccountLocked(email);
+                    if (newLockStatus.isLocked) {
+                        log(`🚫 Account now locked for ${newLockStatus.remainingMinutes} minutes!`);
+                    }
+                }
+            }
+        }
+
+        // Make functions available globally
+        window.testBruteForceProtection = testBruteForceProtection;
+        window.testActualLogin = testActualLogin;
+    </script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .container { display: flex; gap: 20px; }
+        .panel { flex: 1; border: 1px solid #ddd; padding: 20px; border-radius: 8px; }
+        .log { background: #f5f5f5; padding: 10px; border-radius: 4px; height: 300px; overflow-y: auto; white-space: pre-wrap; font-family: monospace; font-size: 12px; }
+        input { width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 5px 0; }
+        button:hover { background: #0056b3; }
+        .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 4px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Brute Force Protection Test</h1>
+    
+    <div class="warning">
+        <strong>⚠️ Important:</strong> You need to update the Firebase configuration in the script section with your actual Firebase project details.
+    </div>
+    
+    <div class="container">
+        <div class="panel">
+            <h2>Direct Test (Simulation)</h2>
+            <input type="email" id="email" placeholder="test-brute-force@example.com" value="test-brute-force@example.com">
+            <button onclick="testBruteForceProtection()">Run Brute Force Test</button>
+            <div class="log" id="log">Test log will appear here...\n</div>
+        </div>
+        
+        <div class="panel">
+            <h2>Actual Login Test</h2>
+            <input type="email" id="loginEmail" placeholder="your-email@example.com">
+            <input type="password" id="loginPassword" placeholder="wrong-password">
+            <button onclick="testActualLogin()">Test Login (with wrong password)</button>
+            <div class="log" id="loginLog">Login test log will appear here...\n</div>
+        </div>
+    </div>
+    
+    <div style="margin-top: 20px;">
+        <h3>Instructions:</h3>
+        <ol>
+            <li>Update the Firebase configuration in the script section</li>
+            <li>Use the "Direct Test" to simulate failed attempts</li>
+            <li>Use the "Actual Login Test" to test with real Firebase authentication</li>
+            <li>Watch the console and logs for detailed information</li>
+            <li>After 5 failed attempts, the account should be locked for 15 minutes</li>
+        </ol>
+    </div>
+</body>
+</html>

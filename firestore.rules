@@ -2,6 +2,13 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
     // Users can only access their own user document
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
@@ -10,6 +17,20 @@ service cloud.firestore {
                        request.auth.uid == userId && 
                        !('role' in request.resource.data) ||
                        request.resource.data.role == resource.data.role;
+    }
+    
+    // Security: Login attempts - allow authenticated users to write, admin read all
+    match /loginAttempts/{attemptId} {
+      allow read: if isAdmin();
+      allow create: if request.auth != null; // Allow users to record their own failed attempts
+      allow update, delete: if false; // No updates or deletes allowed
+    }
+    
+    // Security: Account lockouts - allow authenticated users to manage their lockouts, admin read/delete
+    match /accountLockouts/{email} {
+      allow read: if isAdmin() || (request.auth != null && request.auth.token.email.lower() == email);
+      allow create, update: if request.auth != null; // Allow users to lock their own accounts
+      allow delete: if isAdmin(); // Admins can unlock accounts
     }
     
     // Users can only access their own pets
@@ -51,7 +72,7 @@ service cloud.firestore {
     // Vet clinics are read-only for all authenticated users
     match /vet_clinics/{clinicId} {
       allow read: if request.auth != null;
-      allow write: if false; // Only admins should be able to modify clinics
+      allow write: if isAdmin(); // Only admins can modify clinics
     }
     
     // Deny all other access
