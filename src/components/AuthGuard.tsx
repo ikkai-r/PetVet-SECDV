@@ -79,7 +79,7 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
         if (error.code === 'auth/account-locked') {
           setError(error.message);
         } else if (error.code === 'auth/too-many-requests') {
-          setError(error.message);
+          setError('Error too many requests. Please try again later.');
         } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
           setError('Invalid username/password');
         } else if (error.code === 'auth/email-already-in-use') {
