@@ -19,6 +19,7 @@ import {
   clearFailedAttempts,
   getSecurityAudit 
 } from '@/lib/accountSecurity';
+import { recordLoginAttempt } from '@/services/passwordManagement';
 
 // Verify our security implementation on module load
 verifyPasswordSecurity();
@@ -115,6 +116,9 @@ export const signIn = async (email: string, password: string): Promise<User> => 
     // Clear any failed attempts on successful login
     await clearFailedAttempts(email);
     
+    // Record successful login attempt
+    await recordLoginAttempt(firebaseUser.uid, true);
+    
     // Get user data from Firestore
     const userData = await getUserFromFirestore(firebaseUser.uid);
     
@@ -142,6 +146,17 @@ export const signIn = async (email: string, password: string): Promise<User> => 
       
       console.log('📝 Recording failed attempt for:', email);
       await recordFailedAttempt(email);
+      
+      // Also record in login tracking system
+      try {
+        // Try to get user ID for failed attempt tracking, but don't block on it
+        const userData = await getUserFromFirestore(email);
+        if (userData?.uid) {
+          await recordLoginAttempt(userData.uid, false);
+        }
+      } catch (trackingError) {
+        console.log('Failed to record login attempt in tracking system:', trackingError);
+      }
       
       // Check if this failed attempt triggers a lockout
       const newLockStatus = await isAccountLocked(email);

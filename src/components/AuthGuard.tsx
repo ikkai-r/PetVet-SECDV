@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useState } from 'react';
 import { signIn, signUp, signInWithGoogle } from '@/services/auth';
+import { setupSecurityQuestions, SECURITY_QUESTIONS } from '@/services/passwordManagement';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, User, Stethoscope, Shield, Eye, EyeOff } from 'lucide-react';
+import { Loader2, User, Stethoscope, Shield, Eye, EyeOff, ArrowLeft, ArrowRight } from 'lucide-react';
 import { UserRole } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { validatePassword, getPasswordStrength, getPasswordStrengthColor, getPasswordStrengthBg } from '@/lib/passwordValidation';
@@ -20,6 +21,7 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
   const { user, loading } = useAuth();
   const { toast } = useToast();
   const [isSignUp, setIsSignUp] = useState(false);
+  const [signUpStep, setSignUpStep] = useState(1); // 1: Account details, 2: Security questions
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -30,6 +32,11 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
   const [error, setError] = useState<string>('');
   const [showPassword, setShowPassword] = useState(false);
   const [passwordValidation, setPasswordValidation] = useState({ isValid: true, errors: [] });
+  
+  // Security questions state
+  const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
+  const [questionAnswers, setQuestionAnswers] = useState<Record<string, string>>({});
+  const [createdUserId, setCreatedUserId] = useState<string | null>(null);
 
   if (loading) {
     return (
@@ -46,14 +53,59 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
       setError(''); // Clear previous errors
 
       // For signup, validate password before submitting
-      if (isSignUp && !passwordValidation.isValid) {
+      if (isSignUp && signUpStep === 1 && !passwordValidation.isValid) {
         setError(passwordValidation.errors[0]);
         setIsSubmitting(false);
         return;
       }
 
       try {
-        if (isSignUp) {
+        if (isSignUp && signUpStep === 1) {
+          // Step 1: Validate and proceed to security questions
+          setSignUpStep(2);
+          setIsSubmitting(false);
+          return;
+        } else if (isSignUp && signUpStep === 2) {
+          // Step 2: Complete signup with security questions
+          if (selectedQuestions.length < 3) {
+            setError('Please select at least 3 security questions');
+            setIsSubmitting(false);
+            return;
+          }
+          
+          const incompleteAnswers = selectedQuestions.filter(q => !questionAnswers[q] || questionAnswers[q].trim().length < 5);
+          if (incompleteAnswers.length > 0) {
+            setError('Please provide detailed answers (at least 5 characters) for all selected questions');
+            setIsSubmitting(false);
+            return;
+          }
+
+          // Create account first
+          const newUser = await signUp({
+            email,
+            password,
+            role: selectedRole,
+            displayName,
+            ...(selectedRole === 'vet' && {
+              vetLicenseNumber,
+              specialization,
+            }),
+          });
+
+          // Set up security questions
+          const questionsData = selectedQuestions.map(questionId => ({
+            questionId,
+            answer: questionAnswers[questionId].trim()
+          }));
+          
+          await setupSecurityQuestions(newUser.uid, questionsData);
+          
+          toast({
+            title: "Account created successfully!",
+            description: "Welcome to PetVet! Your account and security questions have been set up.",
+          });
+        } else if (isSignUp) {
+          // Legacy signup without steps (shouldn't happen with new flow)
           await signUp({
             email,
             password,
@@ -94,6 +146,58 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
       } finally {
         setIsSubmitting(false);
       }
+    };
+
+    const addSecurityQuestion = () => {
+      if (selectedQuestions.length >= 5) {
+        setError('You can select up to 5 security questions');
+        return;
+      }
+      setSelectedQuestions([...selectedQuestions, '']);
+    };
+
+    const removeSecurityQuestion = (index: number) => {
+      const questionId = selectedQuestions[index];
+      const newSelected = selectedQuestions.filter((_, i) => i !== index);
+      setSelectedQuestions(newSelected);
+      
+      if (questionId && questionAnswers[questionId]) {
+        const newAnswers = { ...questionAnswers };
+        delete newAnswers[questionId];
+        setQuestionAnswers(newAnswers);
+      }
+    };
+
+    const updateSecurityQuestion = (index: number, questionId: string) => {
+      const newSelected = [...selectedQuestions];
+      const oldQuestionId = newSelected[index];
+      newSelected[index] = questionId;
+      setSelectedQuestions(newSelected);
+      
+      // Clear old answer if question changed
+      if (oldQuestionId && oldQuestionId !== questionId && questionAnswers[oldQuestionId]) {
+        const newAnswers = { ...questionAnswers };
+        delete newAnswers[oldQuestionId];
+        setQuestionAnswers(newAnswers);
+      }
+    };
+
+    const getAvailableQuestions = () => {
+      return SECURITY_QUESTIONS.filter(q => !selectedQuestions.includes(q.id));
+    };
+
+    const resetSignUpForm = () => {
+      setIsSignUp(false);
+      setSignUpStep(1);
+      setEmail('');
+      setPassword('');
+      setDisplayName('');
+      setSelectedRole('pet_owner');
+      setVetLicenseNumber('');
+      setSpecialization('');
+      setSelectedQuestions([]);
+      setQuestionAnswers({});
+      setError('');
     };
 
     const handleGoogleSignIn = async () => {

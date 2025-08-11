@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef} from "react";
-import { User, Settings, Bell, Shield, HelpCircle, LogOut, Edit, Camera, Mail, Phone } from "lucide-react";
+import { User, Settings, Bell, Shield, HelpCircle, LogOut, Edit, Camera, Mail, Phone, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,6 +9,8 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Navigation from "@/components/Navigation";
+import AccountPasswordChange from "@/components/AccountPasswordChange";
+import SecurityStatus from "@/components/SecurityStatus";
 import { getAuth, onAuthStateChanged, updateProfile } from "firebase/auth";
 import { db, auth, storage } from "@/lib/firebase"; // Import storage
 import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, getDoc} from "firebase/firestore";
@@ -18,6 +20,8 @@ import { logout } from '@/services/auth';
 const Account = () => {
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [activeSecurityTab, setActiveSecurityTab] = useState("settings");
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -44,6 +48,7 @@ const Account = () => {
   const menuItems = [
     { icon: Bell, label: "Notifications", action: () => setShowSettings(true) },
     { icon: Shield, label: "Privacy & Security", action: () => setShowSettings(true) },
+    { icon: Lock, label: "Change Password", action: () => setShowPasswordChange(true) },
     { icon: HelpCircle, label: "Help & Support", action: () => {} },
     { icon: Settings, label: "App Settings", action: () => setShowSettings(true) },
   ];
@@ -286,6 +291,11 @@ const fetchCloudinaryConfig = async () => {
         </Card>
       </div>
 
+      {/* Security Status */}
+      <div className="px-6">
+        <SecurityStatus />
+      </div>
+
       {/* Sign Out */}
       <div className="px-6 pb-6">
         <Button variant="destructive" className="w-full" onClick={logout}>
@@ -471,6 +481,12 @@ const fetchCloudinaryConfig = async () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Password Change Dialog */}
+      <AccountPasswordChange 
+        isOpen={showPasswordChange} 
+        onClose={() => setShowPasswordChange(false)} 
+      />
 
       <Navigation />
     </div>
