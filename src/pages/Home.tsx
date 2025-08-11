@@ -40,11 +40,11 @@ const Home = () => {
     let timeGreeting = "Good day!";
     
     if (hour < 12) {
-      timeGreeting = "Good morning!";
+      timeGreeting = "Good morning, ";
     } else if (hour < 18) {
-      timeGreeting = "Good afternoon!";
+      timeGreeting = "Good afternoon,";
     } else {
-      timeGreeting = "Good evening!";
+      timeGreeting = "Good evening, ";
     }
 
     switch (user?.role) {
