@@ -406,7 +406,7 @@ const VetDashboard: React.FC = () => {
                       <TableRow key={pet.id}>
                         <TableCell className="font-medium">{pet.name}</TableCell>
                         <TableCell>{pet.species} - {pet.breed}</TableCell>
-                        <TableCell>{pet.age} years</TableCell>
+                        <TableCell>{pet.age ? `${pet.age} years` : 'Unknown'}</TableCell>
                         <TableCell>{pet.ownerName || pet.ownerEmail}</TableCell>
                         <TableCell>{pet.weight ? `${pet.weight} kg` : 'Not set'}</TableCell>
                         <TableCell>
