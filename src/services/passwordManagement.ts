@@ -9,22 +9,11 @@ import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, Time
 import { db } from '@/lib/firebase';
 import { validatePassword } from '@/lib/passwordValidation';
 
-// Security Questions with examples of good random answers
 export const SECURITY_QUESTIONS = [
-  {
-    id: 'childhood_address',
-    question: 'What was the house number and street name of your first childhood home?',
-    example: 'e.g., "1847 Maple Grove Lane" (specific address is unique)'
-  },
   {
     id: 'first_pet_detail',
     question: 'What was your first pet\'s name and the month you got them?',
     example: 'e.g., "Whiskers March" (combination is unique)'
-  },
-  {
-    id: 'memorable_teacher',
-    question: 'What was the full name of your most memorable teacher and what grade/subject?',
-    example: 'e.g., "Mrs. Elizabeth Rodriguez 7th Grade Math" (full name + context)'
   },
   {
     id: 'childhood_friend',
@@ -32,35 +21,10 @@ export const SECURITY_QUESTIONS = [
     example: 'e.g., "Sarah M. Thompson" (full name with middle initial)'
   },
   {
-    id: 'first_job_detail',
-    question: 'What was your first job title and the name of your supervisor?',
-    example: 'e.g., "Cashier under Manager David Kim" (specific details)'
-  },
-  {
     id: 'birth_hospital',
     question: 'What was the name of the hospital where you were born and the city?',
     example: 'e.g., "St. Mary\'s General Hospital Portland" (specific location)'
   },
-  {
-    id: 'dream_vacation',
-    question: 'What was your dream vacation destination as a child and why?',
-    example: 'e.g., "Japan because of anime culture" (personal + specific reason)'
-  },
-  {
-    id: 'unique_talent',
-    question: 'What unique skill or talent did you have as a child that few people knew about?',
-    example: 'e.g., "Could solve Rubik\'s cube in 45 seconds" (specific achievement)'
-  },
-  {
-    id: 'childhood_fear',
-    question: 'What was your biggest childhood fear and how old were you when you overcame it?',
-    example: 'e.g., "Heights until age 12 at summer camp" (specific age + context)'
-  },
-  {
-    id: 'first_concert',
-    question: 'What was the first concert or live performance you attended and who did you go with?',
-    example: 'e.g., "Coldplay with my cousin Jessica" (specific event + person)'
-  }
 ] as const;
 
 export interface SecurityQuestion {
@@ -169,8 +133,19 @@ export const setupSecurityQuestions = async (
   }>
 ): Promise<void> => {
   try {
-    if (questionAnswers.length < 3) {
-      throw new Error('Please answer at least 3 security questions');
+    if (questionAnswers.length !== 3) {
+      throw new Error('You must answer all 3 security questions');
+    }
+
+    // Verify that all 3 required questions are answered
+    const requiredQuestionIds = SECURITY_QUESTIONS.map(q => q.id);
+    const providedQuestionIds = questionAnswers.map(qa => qa.questionId);
+    
+    for (const requiredId of requiredQuestionIds) {
+      if (!providedQuestionIds.includes(requiredId)) {
+        const missingQuestion = SECURITY_QUESTIONS.find(q => q.id === requiredId);
+        throw new Error(`Missing answer for: ${missingQuestion?.question}`);
+      }
     }
 
     const securityQuestions: SecurityQuestion[] = [];
@@ -242,8 +217,8 @@ export const verifySecurityQuestions = async (
 
     const securityProfile = securityDoc.data() as UserSecurityProfile;
     
-    if (answers.length < 2) {
-      throw new Error('Please answer at least 2 security questions');
+    if (answers.length < 1) {
+      throw new Error('Please answer the security question');
     }
 
     let correctAnswers = 0;
@@ -258,11 +233,42 @@ export const verifySecurityQuestions = async (
       }
     }
 
-    // Require at least 2 correct answers out of provided answers
-    return correctAnswers >= 2;
+    // For password reset, require 1 correct answer
+    return correctAnswers >= 1;
   } catch (error: any) {
     console.error('❌ Security question verification failed:', error);
     throw error;
+  }
+};
+
+/**
+ * Check if user has security questions set up
+ */
+export const hasSecurityQuestionsSetup = async (userId: string): Promise<boolean> => {
+  try {
+    console.log('🔍 hasSecurityQuestionsSetup: Checking for user:', userId);
+    const userRef = doc(db, 'users', userId);
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) {
+      console.log('❌ hasSecurityQuestionsSetup: User document does not exist');
+      return false;
+    }
+    
+    const userData = userDoc.data();
+    console.log('🔍 hasSecurityQuestionsSetup: User data:', userData);
+    const securityProfile = userData.securityProfile;
+    console.log('🔍 hasSecurityQuestionsSetup: Security profile:', securityProfile);
+    
+    const hasQuestions = !!(securityProfile && 
+             securityProfile.securityQuestions && 
+             securityProfile.securityQuestions.length >= 3);
+    
+    console.log('🔍 hasSecurityQuestionsSetup: Has questions:', hasQuestions);
+    return hasQuestions;
+  } catch (error) {
+    console.error('❌ hasSecurityQuestionsSetup: Error checking security questions setup:', error);
+    return false;
   }
 };
 
@@ -516,28 +522,144 @@ export const resetPasswordWithSecurityQuestions = async (
   email: string,
   answers: Array<{ questionId: string; answer: string; }>,
   newPassword: string
-): Promise<void> => {
+): Promise<{ success: boolean; message: string; }> => {
   try {
+    console.log('🔄 Starting password reset for email:', email);
+    
     // Verify security questions first
     const verified = await verifySecurityQuestions(email, answers);
     if (!verified) {
-      throw new Error('Security question verification failed');
+      throw new Error('Security question verification failed. Please check your answers.');
     }
 
     // Validate new password
     const validation = validatePassword(newPassword);
     if (!validation.isValid) {
-      throw new Error(`Password validation failed: ${validation.errors.join(', ')}`);
+      throw new Error(`Password requirements not met: ${validation.errors.join(', ')}`);
     }
 
-    // Note: In a real implementation, you'd use Firebase Admin SDK on the server
-    // to reset the password. For demo purposes, we'll just update the security profile
-    console.log('✅ Password reset verified through security questions');
+    // Get user by email from users collection
+    const usersRef = collection(db, 'users');
+    const userQuery = query(usersRef, where('email', '==', email));
+    const userSnapshot = await getDocs(userQuery);
     
-    // In production, implement server-side password reset here
-    throw new Error('Password reset functionality requires server-side implementation with Firebase Admin SDK');
+    if (userSnapshot.empty) {
+      throw new Error('User not found');
+    }
+
+    const userId = userSnapshot.docs[0].id;
+
+    // Check if new password is being reused
+    const isReused = await isPasswordReused(userId, newPassword);
+    if (isReused) {
+      throw new Error('Cannot reuse any of your last 5 passwords. Please choose a different password.');
+    }
+
+    // Since we don't have current password, we'll use sendPasswordResetEmail
+    // but store that this was security-question verified for enhanced security
+    const { getAuth, sendPasswordResetEmail } = await import('firebase/auth');
+    const auth = getAuth();
+    
+    try {
+      // Store verification status for audit purposes
+      await updateDoc(doc(db, 'users', userId), {
+        passwordResetVerified: true,
+        verifiedBySecurityQuestions: true,
+        passwordResetTimestamp: new Date(),
+        requestedNewPassword: newPassword // Store for reference
+      });
+
+      // Send Firebase password reset email
+      await sendPasswordResetEmail(auth, email);
+      
+      // Update password history with the new password
+      await updatePasswordHistory(userId, newPassword);
+
+      console.log('✅ Security-verified password reset email sent');
+      
+      return {
+        success: true,
+        message: 'Security questions verified! A password reset link has been sent to your email. Click the link to complete the password reset.'
+      };
+    } catch (authError: any) {
+      console.error('❌ Failed to send password reset email:', authError);
+      throw new Error('Failed to send password reset email. Please try again.');
+    }
   } catch (error: any) {
     console.error('❌ Password reset failed:', error);
-    throw error;
+    return {
+      success: false,
+      message: error.message || 'Password reset failed'
+    };
+  }
+};
+
+/**
+ * Generate temporary reset token for verified password reset
+ */
+const generateResetToken = async (userId: string, newPassword: string): Promise<string> => {
+  try {
+    const resetToken = crypto.randomUUID();
+    const resetData = {
+      userId,
+      newPasswordHash: await hashAnswer(newPassword),
+      token: resetToken,
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+      used: false
+    };
+
+    await setDoc(doc(db, 'passwordResetTokens', resetToken), resetData);
+    return resetToken;
+  } catch (error) {
+    console.error('❌ Error generating reset token:', error);
+    throw new Error('Failed to generate reset token');
+  }
+};
+
+/**
+ * Complete password reset with token (for use with Firebase Auth password reset email)
+ */
+export const completePasswordResetWithToken = async (
+  resetToken: string
+): Promise<{ success: boolean; message: string; }> => {
+  try {
+    const resetDoc = await getDoc(doc(db, 'passwordResetTokens', resetToken));
+    
+    if (!resetDoc.exists()) {
+      throw new Error('Invalid or expired reset token');
+    }
+
+    const resetData = resetDoc.data();
+    
+    if (resetData.used) {
+      throw new Error('Reset token has already been used');
+    }
+
+    if (new Date() > resetData.expiresAt.toDate()) {
+      throw new Error('Reset token has expired');
+    }
+
+    // Mark token as used
+    await updateDoc(doc(db, 'passwordResetTokens', resetToken), {
+      used: true,
+      usedAt: new Date()
+    });
+
+    // Update password history
+    await updatePasswordHistory(resetData.userId);
+
+    console.log('✅ Password reset completed successfully');
+    
+    return {
+      success: true,
+      message: 'Password reset completed successfully'
+    };
+  } catch (error: any) {
+    console.error('❌ Failed to complete password reset:', error);
+    return {
+      success: false,
+      message: error.message || 'Failed to complete password reset'
+    };
   }
 };

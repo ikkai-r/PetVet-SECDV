@@ -68,8 +68,21 @@ const VetDashboard: React.FC = () => {
 
   // Form states
   const [petEditForm, setPetEditForm] = useState<Partial<VetPet>>({});
-  const [recordForm, setRecordForm] = useState({
-    visitType: 'routine' as const,
+  type VisitType = 'routine' | 'emergency' | 'follow-up' | 'vaccination' | 'surgery' | 'other';
+  const [recordForm, setRecordForm] = useState<{
+    visitType: VisitType;
+    symptoms: string;
+    diagnosis: string;
+    treatment: string;
+    medications: string;
+    notes: string;
+    weight: string;
+    temperature: string;
+    heartRate: string;
+    cost: string;
+    nextVisitDate: Date | undefined;
+  }>({
+    visitType: 'routine',
     symptoms: '',
     diagnosis: '',
     treatment: '',
@@ -79,7 +92,7 @@ const VetDashboard: React.FC = () => {
     temperature: '',
     heartRate: '',
     cost: '',
-    nextVisitDate: undefined as Date | undefined
+    nextVisitDate: undefined
   });
 
   useEffect(() => {
@@ -168,7 +181,7 @@ const VetDashboard: React.FC = () => {
         temperature: recordForm.temperature ? parseFloat(recordForm.temperature) : undefined,
         heartRate: recordForm.heartRate ? parseInt(recordForm.heartRate) : undefined,
         cost: recordForm.cost ? parseFloat(recordForm.cost) : undefined,
-        nextVisitDate: recordForm.nextVisitDate ? new Date(recordForm.nextVisitDate) : undefined
+        nextVisitDate: recordForm.nextVisitDate ? window.require?.('firebase/firestore').Timestamp.fromDate(recordForm.nextVisitDate) ?? require('firebase/firestore').Timestamp.fromDate(recordForm.nextVisitDate) : undefined
       } as any);
       
       toast({
@@ -199,7 +212,10 @@ const VetDashboard: React.FC = () => {
         temperature: recordForm.temperature ? parseFloat(recordForm.temperature) : undefined,
         heartRate: recordForm.heartRate ? parseInt(recordForm.heartRate) : undefined,
         cost: recordForm.cost ? parseFloat(recordForm.cost) : undefined,
-        nextVisitDate: recordForm.nextVisitDate ? new Date(recordForm.nextVisitDate) : undefined
+        nextVisitDate: recordForm.nextVisitDate
+          ? (window.require?.('firebase/firestore').Timestamp.fromDate(recordForm.nextVisitDate) ??
+             require('firebase/firestore').Timestamp.fromDate(recordForm.nextVisitDate))
+          : undefined
       });
       
       toast({

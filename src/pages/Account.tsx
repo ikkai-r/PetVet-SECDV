@@ -21,7 +21,6 @@ const Account = () => {
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
-  const [activeSecurityTab, setActiveSecurityTab] = useState("settings");
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
