@@ -19,6 +19,7 @@ import { collection, query, where, onSnapshot, addDoc, updateDoc, doc } from "fi
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"; // Import storage functions
 import { User } from "firebase/auth";
 import { deletePet } from "@/services/firestore"; 
+import { petSchema, vaccinationRecordSchema, medicalRecordSchema, validateImageFile } from '@/lib/validation';
 
 const calculateAge = (dateOfBirth: string): string => {
   const today = new Date();
@@ -78,16 +79,9 @@ interface Pet {
 }
 
 const PetManagement = () => {
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [editPetErrors, setEditPetErrors] = useState<{ name?: string; species?: string; breed?: string; dateOfBirth?: string; weight?: string; notes?: string }>({});
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
-  const [showPetDetails, setShowPetDetails] = useState(false);
-  const [showAddPet, setShowAddPet] = useState(false);
-  const [showAddRecord, setShowAddRecord] = useState(false);
-  const [showAddVaccine, setShowAddVaccine] = useState(false);
-  const [showEditProfile, setShowEditProfile] = useState(false);
-
-  // For editing existing records/vaccines
-  const [showEditRecord, setShowEditRecord] = useState(false);
-  const [showEditVaccine, setShowEditVaccine] = useState(false);
   const [currentRecordToEdit, setCurrentRecordToEdit] = useState<Pet['records'][0] | null>(null);
   const [currentVaccineToEdit, setCurrentVaccineToEdit] = useState<Pet['vaccines'][0] | null>(null);
 
@@ -100,7 +94,15 @@ const PetManagement = () => {
     notes: "",
     photo: "", // Added photo to editPetData
   });
-  const [newPet, setNewPet] = useState({
+  const [newPet, setNewPet] = useState<{
+    name: string;
+    species: string;
+    breed: string;
+    dateOfBirth: string;
+    weight: number | "";
+    notes: string;
+    photo: string;
+  }>({
     name: "",
     species: "",
     breed: "",
@@ -109,12 +111,14 @@ const PetManagement = () => {
     notes: "",
     photo: "", // Added photo to newPet
   });
+
   const [pets, setPets] = useState<Pet[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null); // For image upload
-
+  const [newPetErrors, setNewPetErrors] = useState<{ name?: string; species?: string; breed?: string; dateOfBirth?: string; weight?: string; notes?: string }>({});
+ 
   // Use refs to prevent form resets during real-time updates
   const isFormActiveRef = useRef(false);
   useEffect(() => {
@@ -201,6 +205,10 @@ const PetManagement = () => {
     }
   };
 
+  function validatePetField(field: keyof typeof petSchema.shape, value: any) {
+    const result = petSchema.shape[field].safeParse(value);
+    return result.success ? undefined : result.error.errors[0].message;
+  }
 
   const handleAddPet = async () => {
     if (!user) return;
@@ -211,8 +219,10 @@ const PetManagement = () => {
         photoURL = await uploadImage(imageFile);
       }
 
-      // Only use the uploaded photo URL, not the preview
-      const petData = { ...newPet, photo: photoURL };
+      const petData = {
+        ...newPet, 
+        photo: photoURL
+      };
 
       await addDoc(collection(db, "pets"), {
         ...petData,
@@ -230,32 +240,6 @@ const PetManagement = () => {
     } catch (e) {
       console.error("Error adding pet:", e);
       setError("Failed to add pet. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-  const handleEditProfile = async () => {
-    if (!selectedPet || !user) return;
-
-    setLoading(true);
-    try {
-      const petRef = doc(db, "pets", selectedPet.id);
-      let photoURL = editPetData.photo; // Use existing photo by default
-      if (imageFile) {
-        photoURL = await uploadImage(imageFile);
-      }
-
-      await updateDoc(petRef, { ...editPetData, photo: photoURL });
-
-      setActiveModal(null);
-      // setShowEditProfile(false);
-      isFormActiveRef.current = false;
-      setImageFile(null); // Clear image file
-    } catch (error) {
-      console.error("Error updating pet profile:", error);
-      setError("Failed to update pet profile. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -559,27 +543,43 @@ const PetManagement = () => {
           notes: selectedPet.notes || "",
           photo: selectedPet.photo || "",
         });
+        setEditPetErrors({});
+        setImageError(null);
         setImageFile(null); // Clear image file on dialog open
       } else {
         isFormActiveRef.current = false;
+        setEditPetErrors({});
+        setImageError(null);
       }
     }, [activeModal, selectedPet]);
 
     const handleFileChangeEditPetForm = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
-        setImageFile(e.target.files[0]);
+        const file = e.target.files[0];
+        const errorMsg = validateImageFile(file);
+        if (errorMsg) {
+          setImageError(errorMsg.error);
+          setImageFile(null);
+          return;
+        }
+        setImageError(null);
+        setImageFile(file);
         // Optionally, display a preview
         const reader = new FileReader();
         reader.onload = (event) => {
           setLocalEditDataForm(prev => ({ ...prev, photo: event.target?.result as string }));
         };
-        reader.readAsDataURL(e.target.files[0]);
+        reader.readAsDataURL(file);
       }
     };
 
-    const handleSaveEditPetForm = async () => {
+    const handleEditPet = async () => {
       if (!selectedPet || !user) return;
-
+      // Check for validation errors before saving
+      if (Object.values(editPetErrors).some(Boolean)) {
+        setError("Please fix validation errors before saving.");
+        return;
+      }
       setLoading(true);
       try {
         const petRef = doc(db, "pets", selectedPet.id);
@@ -604,13 +604,21 @@ const PetManagement = () => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setImageFile(e.target.files[0]);
+      const file = e.target.files[0];
+      const errorMsg = validateImageFile(file);
+      if (errorMsg) {
+        setImageError(errorMsg.error);
+        setImageFile(null);
+        return;
+      }
+      setImageError(null);
+      setImageFile(file);
       // Optionally, display a preview
       const reader = new FileReader();
       reader.onload = (event) => {
         setNewPet(prev => ({ ...prev, photo: event.target?.result as string }));
       };
-      reader.readAsDataURL(e.target.files[0]);
+      reader.readAsDataURL(file);
     }
   };
 
@@ -1121,7 +1129,12 @@ const PetManagement = () => {
         if (!open) {
           isFormActiveRef.current = false;
           setImageFile(null);
+          setEditPetErrors({});
+          setImageError(null);
           setActiveModal(null);
+        } else {
+          setEditPetErrors({});
+          setImageError(null);
         }
       }}>
         <DialogContent className="sm:max-w-4xl max-w-xs rounded-lg sm:rounded-2xl  animate-in fade-in zoom-in-95 slide-in-from-top-10">
@@ -1141,19 +1154,35 @@ const PetManagement = () => {
                 </div>
                 <Input type="file" accept="image/*" onChange={handleFileChangeEditPetForm} />
               </div>
+              {imageError && <span className="text-red-500 text-xs">{imageError}</span>}
             </div>
             <div>
               <Label>Name</Label>
               <Input
                 value={localEditDataForm.name}
-                onChange={(e) => setLocalEditDataForm(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setLocalEditDataForm(prev => ({ ...prev, name: value }));
+                  setEditPetErrors(prev => ({
+                    ...prev,
+                    name: validatePetField("name", value)
+                  }));
+                }}
+                className={editPetErrors.name ? "border-red-500" : ""}
               />
+              {editPetErrors.name && <span className="text-red-500 text-xs">{editPetErrors.name}</span>}
             </div>
             <div>
               <Label>Species</Label>
               <Select
                 value={localEditDataForm.species}
-                onValueChange={(value) => setLocalEditDataForm(prev => ({ ...prev, species: value }))}
+                onValueChange={(value) => {
+                  setLocalEditDataForm(prev => ({ ...prev, species: value }));
+                  setEditPetErrors(prev => ({
+                    ...prev,
+                    species: validatePetField("species", value)
+                  }));
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -1167,22 +1196,32 @@ const PetManagement = () => {
                   <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
+              {editPetErrors.species && <span className="text-red-500 text-xs">{editPetErrors.species}</span>}
             </div>
             <div>
               <Label>Breed</Label>
               <Input
                 value={localEditDataForm.breed}
-                onChange={(e) => setLocalEditDataForm(prev => ({ ...prev, breed: e.target.value }))}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setLocalEditDataForm(prev => ({ ...prev, breed: value }));
+                  setEditPetErrors(prev => ({
+                    ...prev,
+                    breed: value === "" ? undefined : validatePetField("breed", value)
+                  }));
+                }}
+                className={editPetErrors.breed ? "border-red-500" : ""}
               />
+              {editPetErrors.breed && <span className="text-red-500 text-xs">{editPetErrors.breed}</span>}
             </div>
             <div>
               <Label>Date of Birth</Label>
               <DatePicker
-                date={localEditDataForm.dateOfBirth ? new Date(localEditDataForm.dateOfBirth + 'T00:00:00') : undefined}
-                onDateChange={(date) => setLocalEditDataForm(prev => ({ 
-                  ...prev, 
+                date={newPet.dateOfBirth ? new Date(newPet.dateOfBirth + 'T00:00:00') : undefined}
+                onDateChange={(date) => setNewPet({ 
+                  ...newPet, 
                   dateOfBirth: date ? format(date, 'yyyy-MM-dd') : "" 
-                }))}
+                })}
                 placeholder="Select date of birth"
                 maxDate={new Date()}
               />
@@ -1190,24 +1229,41 @@ const PetManagement = () => {
             <div>
               <Label>Weight (kg)</Label>
               <Input
-                  type="number"
-                  step="0.1"
-                  min="0"
+                type="number"
+                step="0.1"
+                min="0"
                 placeholder="e.g., 15, 7.5, 2.3"
-                value={localEditDataForm.weight}
-                onChange={(e) => setLocalEditDataForm(prev => ({ ...prev, weight: e.target.value }))}
+                value={localEditDataForm.weight === undefined || localEditDataForm.weight === null ? "" : localEditDataForm.weight}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setLocalEditDataForm(prev => ({ ...prev, weight: value }));
+                  setEditPetErrors(prev => ({
+                    ...prev,
+                    weight: validatePetField("weight", value === "" ? 0 : parseFloat(value))
+                  }));
+                }}
+                className={editPetErrors.weight ? "border-red-500" : ""}
               />
+              {editPetErrors.weight && <span className="text-red-500 text-xs">{editPetErrors.weight}</span>}
             </div>
             <div>
               <Label>Notes</Label>
               <Textarea
                 placeholder="Any additional notes about your pet..."
                 value={localEditDataForm.notes}
-                onChange={(e) => setLocalEditDataForm(prev => ({ ...prev, notes: e.target.value }))}
+                onChange={(e) => {
+                  setLocalEditDataForm(prev => ({ ...prev, notes: e.target.value }));
+                  setEditPetErrors(prev => ({
+                    ...prev,
+                    notes: e.target.value === "" ? undefined : validatePetField("notes", e.target.value)
+                  }));
+                }}
+                className={editPetErrors.notes ? "border-red-500" : ""}
               />
+              {editPetErrors.notes && <span className="text-red-500 text-xs">{editPetErrors.notes}</span>}
             </div>
             <div className="flex gap-2">
-              <Button onClick={handleSaveEditPetForm}>
+              <Button onClick={handleEditPet} disabled={Object.values(editPetErrors).some(Boolean)}>
                 Save Changes
               </Button>
               <Button variant="outline" onClick={() => {
@@ -1228,7 +1284,12 @@ const PetManagement = () => {
         if (!open) {
           setImageFile(null);
           setNewPet({ name: "", species: "", breed: "", dateOfBirth: "", weight: "", notes: "", photo: "" });
+          setNewPetErrors({});
+          setImageError(null);
           setActiveModal(null);
+        } else {
+          setNewPetErrors({});
+          setImageError(null);
         }
       }}>
         <DialogContent className="sm:max-w-4xl max-w-xs rounded-lg sm:rounded-2xl  animate-in fade-in zoom-in-95 slide-in-from-top-10">
@@ -1248,14 +1309,23 @@ const PetManagement = () => {
                 </div>
                 <Input type="file" accept="image/*" onChange={handleFileChange} />
               </div>
+              {imageError && <span className="text-red-500 text-xs">{imageError}</span>}
             </div>
             <div>
               <Label>Name *</Label>
               <Input
                 value={newPet.name}
-                onChange={(e) => setNewPet({ ...newPet, name: e.target.value })}
-                placeholder="Enter pet's name"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setNewPet({ ...newPet, name: value });
+                  setNewPetErrors(prev => ({
+                    ...prev,
+                    name: validatePetField("name", value)
+                  }));
+                }}
+                className={newPetErrors.name ? "border-red-500" : ""}
               />
+              {newPetErrors.name && <span className="text-red-500 text-xs">{newPetErrors.name}</span>}
             </div>
             <div>
               <Label>Species *</Label>
@@ -1280,12 +1350,20 @@ const PetManagement = () => {
               <Label>Breed</Label>
               <Input
                 value={newPet.breed}
-                onChange={(e) => setNewPet({ ...newPet, breed: e.target.value })}
-                placeholder="Enter breed"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setNewPet({ ...newPet, breed: value });
+                  setNewPetErrors(prev => ({
+                    ...prev,
+                    breed: value === "" ? undefined : validatePetField("breed", value)
+                  }));
+                }}
+                className={newPetErrors.breed ? "border-red-500" : ""}
               />
+              {newPetErrors.breed && <span className="text-red-500 text-xs">{newPetErrors.breed}</span>}
             </div>
             <div>
-              <Label>Date of Birth</Label>
+              <Label>Date of Birth *</Label>
               <DatePicker
                 date={newPet.dateOfBirth ? new Date(newPet.dateOfBirth + 'T00:00:00') : undefined}
                 onDateChange={(date) => setNewPet({ 
@@ -1299,24 +1377,41 @@ const PetManagement = () => {
             <div>
               <Label>Weight (kg)</Label>
               <Input
-                  type="number"
-                  step="0.1"
-                  min="0"
+                type="number"
+                step="0.1"
+                min="0"
                 placeholder="e.g., 15, 7.5, 2.3"
-                value={newPet.weight}
-                onChange={(e) => setNewPet({ ...newPet, weight: e.target.value })}
+                value={newPet.weight === undefined || newPet.weight === null ? "" : newPet.weight}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setNewPet({ ...newPet, weight: value === "" ? "" : parseFloat(value) });
+                  setNewPetErrors(prev => ({
+                    ...prev,
+                    weight: validatePetField("weight", value === "" ? 0 : parseFloat(value))
+                  }));
+                }}
+                className={newPetErrors.weight ? "border-red-500" : ""}
               />
+               {newPetErrors.weight && <span className="text-red-500 text-xs">{newPetErrors.weight}</span>}
             </div>
             <div>
               <Label>Notes</Label>
               <Textarea
                 value={newPet.notes}
-                onChange={(e) => setNewPet({ ...newPet, notes: e.target.value })}
+                onChange={(e) => {
+                  setNewPet({ ...newPet, notes: e.target.value });
+                  setNewPetErrors(prev => ({
+                    ...prev,
+                    notes: e.target.value === "" ? undefined : validatePetField("notes", e.target.value)
+                  }));
+                }}
                 placeholder="Any additional notes..."
+                className={newPetErrors.notes ? "border-red-500" : ""}
               />
+              {newPetErrors.notes && <span className="text-red-500 text-xs">{newPetErrors.notes}</span>}
             </div>
             <div className="flex gap-2">
-              <Button onClick={handleAddPet} disabled={!newPet.name || !newPet.species}>
+              <Button onClick={handleAddPet} disabled={!newPet.name || !newPet.species || !newPet.dateOfBirth ||  Object.values(newPetErrors).some(Boolean)}>
                 Add Pet
               </Button>
               <Button variant="outline" onClick={() => setActiveModal(null)}>

@@ -10,23 +10,25 @@ export const petSchema = z.object({
     .min(1, "Pet name is required")
     .max(50, "Pet name must be less than 50 characters")
     .regex(/^[a-zA-Z\s'-]+$/, "Pet name can only contain letters, spaces, hyphens, and apostrophes"),
-  age: z.number()
-    .min(0, "Age must be positive")
-    .max(50, "Age must be realistic"),
-  gender: z.string()
-    .min(1, "Gender is required"),
   species: z.string()
     .min(1, "Species is required")
-    .max(30, "Species must be less than 30 characters"),
+    .max(30, "Species must be less than 30 characters")
+    .regex(/^[a-zA-Z\s'-]+$/, "Species can only contain letters, spaces, hyphens, and apostrophes"),
   breed: z.string()
     .max(50, "Breed must be less than 50 characters")
+    .regex(/^[a-zA-Z\s'-]+$/, "Pet breed can only contain letters, spaces, hyphens, and apostrophes")
     .optional(),
   weight: z.number()
     .min(0, "Weight must be positive")
     .max(1000, "Weight must be realistic")
-    .optional(),
+    .refine(val => /^\d+(\.\d{1,2})?$/.test(val.toString()), {
+      message: "Weight must be a number with up to 2 decimal places"
+    })
+  .optional(),
   date_of_birth: z.string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+  notes: z.string()
+    .max(500, "Notes must be less than 500 characters")
     .optional(),
 });
 
@@ -136,14 +138,14 @@ export const validateEmail = (email: string): { isValid: boolean; error?: string
 // File upload validation with strict security checks
 export const validateImageFile = (file: File): { isValid: boolean; error?: string } => {
   const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-  const maxSize = 5 * 1024 * 1024; // 5MB
-  
+  const maxSize = 1 * 1024 * 1024; // 1MB
+
   if (!allowedTypes.includes(file.type)) {
     return { isValid: false, error: 'File type not allowed. Only JPEG, PNG, and WebP are supported.' };
   }
   
   if (file.size > maxSize) {
-    return { isValid: false, error: 'File size too large. Maximum size is 5MB.' };
+    return { isValid: false, error: 'File size too large. Maximum size is 1MB.' };
   }
   
   // Validate filename for malicious content
