@@ -20,6 +20,8 @@ import {
   getSecurityAudit 
 } from '@/lib/accountSecurity';
 import { recordLoginAttempt } from '@/services/passwordManagement';
+import { logEvent } from '@/services/adminService';
+import { add } from 'date-fns';
 
 // Verify our security implementation on module load
 verifyPasswordSecurity();
@@ -35,6 +37,15 @@ interface SignUpData {
   vetLicenseNumber?: string;
   specialization?: string;
 }
+
+function addLog(action: string, details: string, userEmail: string) {
+  if (!details) return;
+  const timestamp = new Date().toLocaleDateString() + " " + new Date().toLocaleTimeString();
+  const success = details.includes("successfully") || details.includes("successful");
+  
+  logEvent(action, timestamp, details, userEmail, success);
+}
+
 
 export const signUp = async (data: SignUpData): Promise<User> => {
   const { email, password, role, displayName, vetLicenseNumber, specialization } = data;
@@ -67,6 +78,8 @@ export const signUp = async (data: SignUpData): Promise<User> => {
   };
 
   await setDoc(doc(db, "users", user.uid), userData);
+
+  addLog("User Registration", "Register successful", user.email!);
 
   return {
     uid: user.uid,
@@ -106,22 +119,22 @@ export const signIn = async (email: string, password: string): Promise<User> => 
       message: `Account is temporarily locked due to multiple failed login attempts. ` +
                `Please try again in ${lockStatus.remainingMinutes} minutes.`
     };
+    // Log lockout as failure
+    addLog("Login Attempt", error.message, email);
     throw error;
   }
 
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const firebaseUser = userCredential.user;
-    
     // Clear any failed attempts on successful login
     await clearFailedAttempts(email);
-    
     // Record successful login attempt
     await recordLoginAttempt(firebaseUser.uid, true);
-    
+    // Log successful login
+    addLog("Login Attempt", "Login successful", email);
     // Get user data from Firestore
     const userData = await getUserFromFirestore(firebaseUser.uid);
-    
     return {
       uid: firebaseUser.uid,
       email: firebaseUser.email!,
@@ -137,16 +150,13 @@ export const signIn = async (email: string, password: string): Promise<User> => 
     };
   } catch (error: any) {
     console.log('🔍 Auth Error:', error.code, error.message);
-    
     // Record failed attempt for authentication errors
     if (error.code === 'auth/user-not-found' || 
         error.code === 'auth/wrong-password' || 
         error.code === 'auth/invalid-credential' ||
         error.code === 'auth/invalid-email') {
-      
       console.log('📝 Recording failed attempt for:', email);
       await recordFailedAttempt(email);
-      
       // Also record in login tracking system
       try {
         // Try to get user ID for failed attempt tracking, but don't block on it
@@ -157,21 +167,22 @@ export const signIn = async (email: string, password: string): Promise<User> => 
       } catch (trackingError) {
         console.log('Failed to record login attempt in tracking system:', trackingError);
       }
-      
+      // Log failed login
+      addLog("Login Attempt", "Authentication failed", email);
       // Check if this failed attempt triggers a lockout
       const newLockStatus = await isAccountLocked(email);
       console.log('🔒 Lock status after failed attempt:', newLockStatus);
-      
       if (newLockStatus.isLocked) {
         const lockoutError = {
           code: 'auth/account-locked',
           message: `Too many failed login attempts. Account is now locked for ${newLockStatus.remainingMinutes} minutes.`
         };
         console.log('🚫 Throwing lockout error:', lockoutError);
+        // Log lockout as failure
+        addLog("Login Attempt", lockoutError.message, email);
         throw lockoutError;
       }
     }
-    
     // Handle Firebase rate limiting with custom message
     if (error.code === 'auth/too-many-requests') {
       throw {
@@ -179,7 +190,6 @@ export const signIn = async (email: string, password: string): Promise<User> => 
         message: 'Error: Too many requests, please try again later. Firebase has temporarily blocked further attempts from your location for security reasons.'
       };
     }
-    
     throw error;
   }
 };

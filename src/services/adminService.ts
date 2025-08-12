@@ -10,11 +10,14 @@ import {
   orderBy, 
   Timestamp,
   updateDoc,
-  deleteField
+  addDoc,
+  deleteField,
+  limit as fsLimit
 } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { UserRole } from '@/types';
+import { time } from 'console';
 
 // Types
 export interface AdminUser {
@@ -45,6 +48,15 @@ export interface VetAssignment {
   vetId: string;
   vetEmail: string;
   assignedAt: Timestamp;
+}
+
+export interface Log {
+  id: string;
+  action: string;
+  details: string;
+  userEmail?: string;
+  timestamp: string;
+  success: boolean;
 }
 
 /**
@@ -390,3 +402,44 @@ export const getUserStatistics = async () => {
     throw error;
   }
 };
+
+export const getSystemLogs = async (logLimit: number = 50) => {
+  try { 
+    console.log('📋 Fetching system logs...');
+
+    const logsRef = collection(db, 'logs');
+    const q = query(logsRef, orderBy('timestamp', 'desc'), fsLimit(logLimit));
+    const snapshot = await getDocs(q);
+
+    const logs: Log[] = await Promise.all(
+      snapshot.docs.map(async (logDoc) => {
+        const logData = logDoc.data();
+        return {
+          id: logDoc.id,
+          action: logData.action,
+          details: logData.details,
+          userEmail: logData.userEmail,
+          timestamp: logData.timestamp,
+          success: logData.success
+        } as Log;
+      })
+    );
+
+    console.log(`✅ Found ${logs.length} logs`);
+    return logs;
+  } catch (error) {
+    console.error('❌ Error getting system logs:', error);
+    throw error;
+  }
+};
+
+export async function logEvent(action: string, timestamp: string, details: string, userEmail: string, success: boolean) {
+  const docRef = await addDoc(collection(db, 'logs'), {
+      action,
+      details,
+      userEmail: userEmail || null,
+      timestamp: timestamp,
+      success: success
+    });
+    return docRef.id;
+}

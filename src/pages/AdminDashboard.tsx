@@ -18,12 +18,14 @@ import {
   assignVetToPetOwner,
   getUserAssignments,
   deleteUser,
-  updateUserRole 
+  updateUserRole,
+  getSystemLogs ,
 } from '@/services/adminService';
 import { UserRole } from '@/types';
 import { AccountSecurityManagement } from '@/components/AccountSecurityManagement';
 import { BruteForceTestComponent } from '@/components/BruteForceTestComponent';
 import Navigation from '@/components/Navigation';
+import { db } from '@/lib/firebase';
 
 interface User {
   id: string;
@@ -55,10 +57,20 @@ interface VetAssignment {
   assignedAt: any;
 }
 
+export interface Log {
+  id: string;
+  action: string;
+  details: string;
+  userEmail?: string;
+  timestamp: string;
+  success: boolean;
+}
+
 const AdminDashboard: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [pets, setPets] = useState<Pet[]>([]);
   const [assignments, setAssignments] = useState<VetAssignment[]>([]);
+  const [logs, setLogs] = useState<Log[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -86,15 +98,19 @@ const AdminDashboard: React.FC = () => {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const [usersData, petsData, assignmentsData] = await Promise.all([
+      const [usersData, petsData, assignmentsData, logsData] = await Promise.all([
         getAllUsers(),
         getAllPets(),
-        getUserAssignments()
+        getUserAssignments(),
+        getSystemLogs()
       ]);
-      
+
+
       setUsers(usersData);
       setPets(petsData);
       setAssignments(assignmentsData);
+      setLogs(logsData);
+      
     } catch (error) {
       toast({
         title: "Error",
@@ -566,7 +582,35 @@ const AdminDashboard: React.FC = () => {
               <CardTitle>System Logs</CardTitle>
             </CardHeader>
             <CardContent>
-              <Alert>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Timestamp</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>User ID</TableHead>
+                    <TableHead>Details</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {logs.map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell className="font-medium">{log.action}</TableCell>
+                      <TableCell>{log.timestamp}</TableCell>
+                      <TableCell>
+                        {log.success ? (
+                          <span className="text-green-600 font-semibold">Success</span>
+                        ) : (
+                          <span className="text-red-600 font-semibold">Failure</span>
+                        )}
+                      </TableCell>
+                      <TableCell>{log.userEmail || 'N/A'}</TableCell>
+                      <TableCell>{log.details || 'No details'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {/* <Alert>
                 <Activity className="h-4 w-4" />
                 <AlertDescription>
                   System logging interface is currently under development. This will include:
@@ -578,7 +622,7 @@ const AdminDashboard: React.FC = () => {
                     <li>Pet data modifications</li>
                   </ul>
                 </AlertDescription>
-              </Alert>
+              </Alert> */}
             </CardContent>
           </Card>
         </TabsContent>

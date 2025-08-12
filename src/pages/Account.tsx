@@ -77,9 +77,9 @@ const Account = () => {
           role: firestoreData.role || "user",
         });
 
-        console.log("Loaded user from Firestore:", firestoreData);
+        // console.log("Loaded user from Firestore:", firestoreData);
       } catch (error) {
-        console.error("Error fetching Firestore user data:", error);
+        // console.error("Error fetching Firestore user data:", error);
       }
     } else {
       setUser(null);

@@ -20,6 +20,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage"; // Import s
 import { User } from "firebase/auth";
 import { deletePet } from "@/services/firestore"; 
 import { petSchema, vaccinationRecordSchema, medicalRecordSchema, validateImageFile } from '@/lib/validation';
+import { logEvent } from "@/services/adminService";
 
 const calculateAge = (dateOfBirth: string): string => {
   const today = new Date();
@@ -84,6 +85,16 @@ const PetManagement = () => {
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
   const [currentRecordToEdit, setCurrentRecordToEdit] = useState<Pet['records'][0] | null>(null);
   const [currentVaccineToEdit, setCurrentVaccineToEdit] = useState<Pet['vaccines'][0] | null>(null);
+
+  // Log validation failures (can be replaced with backend logging)
+  function addLog(action: string, details: string) {
+    if (!details) return;
+    const userEmail = user?.email || "anonymous";
+    const timestamp = new Date().toLocaleDateString() + " " + new Date().toLocaleTimeString();
+    const success = details.includes("successfully") || details.includes("added") || details.includes("updated");
+    
+    logEvent(action, timestamp, details, userEmail, success);
+  }
 
   const [editPetData, setEditPetData] = useState({
     name: "",
@@ -242,6 +253,7 @@ const PetManagement = () => {
       setError("Failed to add pet. Please try again.");
     } finally {
       setLoading(false);
+      addLog("Add Pet", "Pet profile added successfully");
     }
   };
 
@@ -559,11 +571,13 @@ const PetManagement = () => {
         const errorMsg = validateImageFile(file);
         if (errorMsg) {
           setImageError(errorMsg.error);
+          addLog("Edit Pet", errorMsg.error);
           setImageFile(null);
           return;
         }
         setImageError(null);
         setImageFile(file);
+        addLog("Edit Pet", "Image file uploaded successfully");
         // Optionally, display a preview
         const reader = new FileReader();
         reader.onload = (event) => {
@@ -599,6 +613,7 @@ const PetManagement = () => {
         setError("Failed to update pet profile. Please try again.");
       } finally {
         setLoading(false);
+        addLog("Edit Pet", "Pet profile updated successfully");
       }
     };
 
@@ -608,9 +623,11 @@ const PetManagement = () => {
       const errorMsg = validateImageFile(file);
       if (errorMsg) {
         setImageError(errorMsg.error);
+        addLog("Add Pet", errorMsg.error);
         setImageFile(null);
         return;
       }
+      addLog("Add Pet", "Image file uploaded successfully");
       setImageError(null);
       setImageFile(file);
       // Optionally, display a preview
@@ -632,12 +649,13 @@ const PetManagement = () => {
       setSelectedPet(null);
     } catch (error) {
       setError("Failed to delete pet. Please try again.");
+      addLog("Delete Pet", "Failed to delete pet. Please try again");
     } finally {
       setLoading(false);
+      addLog("Delete Pet", "Pet profile deleted successfully");
     }
   };
 
-  
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -1162,11 +1180,13 @@ const PetManagement = () => {
                 value={localEditDataForm.name}
                 onChange={(e) => {
                   const value = e.target.value;
+                  const errorMsg = validatePetField("name", value);
                   setLocalEditDataForm(prev => ({ ...prev, name: value }));
                   setEditPetErrors(prev => ({
                     ...prev,
-                    name: validatePetField("name", value)
+                    name: errorMsg
                   }));
+                  if (errorMsg) addLog("Edit Pet", errorMsg);
                 }}
                 className={editPetErrors.name ? "border-red-500" : ""}
               />
@@ -1177,11 +1197,13 @@ const PetManagement = () => {
               <Select
                 value={localEditDataForm.species}
                 onValueChange={(value) => {
+                  const errorMsg = validatePetField("species", value);
                   setLocalEditDataForm(prev => ({ ...prev, species: value }));
                   setEditPetErrors(prev => ({
                     ...prev,
-                    species: validatePetField("species", value)
+                    species: errorMsg
                   }));
+                  if (errorMsg) addLog("Edit Pet", errorMsg);
                 }}
               >
                 <SelectTrigger>
@@ -1204,11 +1226,13 @@ const PetManagement = () => {
                 value={localEditDataForm.breed}
                 onChange={(e) => {
                   const value = e.target.value;
+                  const errorMsg = value === "" ? undefined : validatePetField("breed", value);
                   setLocalEditDataForm(prev => ({ ...prev, breed: value }));
                   setEditPetErrors(prev => ({
                     ...prev,
-                    breed: value === "" ? undefined : validatePetField("breed", value)
+                    breed: errorMsg
                   }));
+                  if (errorMsg) addLog("Edit Pet", errorMsg);
                 }}
                 className={editPetErrors.breed ? "border-red-500" : ""}
               />
@@ -1236,11 +1260,13 @@ const PetManagement = () => {
                 value={localEditDataForm.weight === undefined || localEditDataForm.weight === null ? "" : localEditDataForm.weight}
                 onChange={(e) => {
                   const value = e.target.value;
+                  const errorMsg = validatePetField("weight", value === "" ? 0 : parseFloat(value));
                   setLocalEditDataForm(prev => ({ ...prev, weight: value }));
                   setEditPetErrors(prev => ({
                     ...prev,
-                    weight: validatePetField("weight", value === "" ? 0 : parseFloat(value))
+                    weight: errorMsg
                   }));
+                  if (errorMsg) addLog("Edit Pet", errorMsg);
                 }}
                 className={editPetErrors.weight ? "border-red-500" : ""}
               />
@@ -1252,11 +1278,14 @@ const PetManagement = () => {
                 placeholder="Any additional notes about your pet..."
                 value={localEditDataForm.notes}
                 onChange={(e) => {
-                  setLocalEditDataForm(prev => ({ ...prev, notes: e.target.value }));
+                  const value = e.target.value;
+                  const errorMsg = value === "" ? undefined : validatePetField("notes", value);
+                  setLocalEditDataForm(prev => ({ ...prev, notes: value }));
                   setEditPetErrors(prev => ({
                     ...prev,
-                    notes: e.target.value === "" ? undefined : validatePetField("notes", e.target.value)
+                    notes: errorMsg
                   }));
+                  if (errorMsg) addLog("Edit Pet", errorMsg);
                 }}
                 className={editPetErrors.notes ? "border-red-500" : ""}
               />
@@ -1317,11 +1346,13 @@ const PetManagement = () => {
                 value={newPet.name}
                 onChange={(e) => {
                   const value = e.target.value;
+                  const errorMsg = validatePetField("name", value);
                   setNewPet({ ...newPet, name: value });
                   setNewPetErrors(prev => ({
                     ...prev,
-                    name: validatePetField("name", value)
+                    name: errorMsg
                   }));
+                  if (errorMsg) addLog("Add Pet", errorMsg);
                 }}
                 className={newPetErrors.name ? "border-red-500" : ""}
               />
@@ -1331,7 +1362,15 @@ const PetManagement = () => {
               <Label>Species *</Label>
               <Select
                 value={newPet.species}
-                onValueChange={(value) => setNewPet({ ...newPet, species: value })}
+                onValueChange={(value) => {
+                  const errorMsg = validatePetField("species", value);
+                  setNewPet({ ...newPet, species: value });
+                  setNewPetErrors(prev => ({
+                    ...prev,
+                    species: errorMsg
+                  }));
+                  if (errorMsg) addLog("Add Pet", errorMsg);
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select species" />
@@ -1352,11 +1391,13 @@ const PetManagement = () => {
                 value={newPet.breed}
                 onChange={(e) => {
                   const value = e.target.value;
+                  const errorMsg = value === "" ? undefined : validatePetField("breed", value);
                   setNewPet({ ...newPet, breed: value });
                   setNewPetErrors(prev => ({
                     ...prev,
-                    breed: value === "" ? undefined : validatePetField("breed", value)
+                    breed: errorMsg
                   }));
+                  if (errorMsg) addLog("Add Pet", errorMsg);
                 }}
                 className={newPetErrors.breed ? "border-red-500" : ""}
               />
@@ -1384,11 +1425,13 @@ const PetManagement = () => {
                 value={newPet.weight === undefined || newPet.weight === null ? "" : newPet.weight}
                 onChange={(e) => {
                   const value = e.target.value;
+                  const errorMsg = validatePetField("weight", value === "" ? 0 : parseFloat(value));
                   setNewPet({ ...newPet, weight: value === "" ? "" : parseFloat(value) });
                   setNewPetErrors(prev => ({
                     ...prev,
-                    weight: validatePetField("weight", value === "" ? 0 : parseFloat(value))
+                    weight: errorMsg
                   }));
+                  if (errorMsg) addLog("Add Pet", errorMsg);
                 }}
                 className={newPetErrors.weight ? "border-red-500" : ""}
               />
@@ -1399,11 +1442,14 @@ const PetManagement = () => {
               <Textarea
                 value={newPet.notes}
                 onChange={(e) => {
-                  setNewPet({ ...newPet, notes: e.target.value });
+                  const value = e.target.value;
+                  const errorMsg = value === "" ? undefined : validatePetField("notes", value);
+                  setNewPet({ ...newPet, notes: value });
                   setNewPetErrors(prev => ({
                     ...prev,
-                    notes: e.target.value === "" ? undefined : validatePetField("notes", e.target.value)
+                    notes: errorMsg
                   }));
+                  if (errorMsg) addLog("Add Pet", errorMsg);
                 }}
                 placeholder="Any additional notes..."
                 className={newPetErrors.notes ? "border-red-500" : ""}
