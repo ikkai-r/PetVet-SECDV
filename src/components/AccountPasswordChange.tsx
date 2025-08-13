@@ -118,7 +118,8 @@ const AccountPasswordChange: React.FC<AccountPasswordChangeProps> = ({ isOpen, o
         confirmPassword: ''
       });
     } catch (error: any) {
-      setError("Failed to change password. Please try again.");
+      // Use error.message from passwordManagement for user feedback
+      setError(error.message || "Failed to change password. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -332,7 +333,7 @@ const AccountPasswordChange: React.FC<AccountPasswordChangeProps> = ({ isOpen, o
         )}
 
         <DialogFooter>
-          {step === 'form' ? (
+          {step === 'form' && canChange.allowed ? (
             <>
               <Button variant="outline" onClick={handleClose}>
                 Cancel
@@ -344,7 +345,7 @@ const AccountPasswordChange: React.FC<AccountPasswordChangeProps> = ({ isOpen, o
                 {loading ? 'Changing Password...' : 'Change Password'}
               </Button>
             </>
-          ) : (
+          ) : step === 'form' && !canChange.allowed ? null : (
             <Button onClick={handleClose} className="w-full">
               Done
             </Button>

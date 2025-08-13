@@ -1,4 +1,3 @@
-
 import { 
   updatePassword, 
   reauthenticateWithCredential, 
@@ -376,14 +375,19 @@ export const canChangePassword = async (userId: string): Promise<{allowed: boole
     const lastChange = profile.lastPasswordChange;
     
     if (lastChange) {
-      const lastChangeDate = lastChange instanceof Date ? lastChange : new Date(lastChange);
+      // Firestore Timestamp support
+      const lastChangeDate =
+        lastChange instanceof Date
+          ? lastChange
+          : lastChange && typeof (lastChange as any).toDate === 'function'
+          ? (lastChange as any).toDate()
+          : new Date(lastChange);
       const now = new Date();
       const hoursSinceChange = (now.getTime() - lastChangeDate.getTime()) / (1000 * 60 * 60);
-      
       if (hoursSinceChange < 24) {
         const hoursRemaining = Math.ceil(24 - hoursSinceChange);
-        return { 
-          allowed: false, 
+        return {
+          allowed: false,
           reason: `Password can only be changed once every 24 hours. Please wait ${hoursRemaining} more hour(s).`
         };
       }
