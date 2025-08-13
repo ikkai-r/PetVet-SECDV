@@ -79,7 +79,7 @@ export const signUp = async (data: SignUpData): Promise<User> => {
 
   await setDoc(doc(db, "users", user.uid), userData);
 
-  addLog("Register", "Register successful", user.email!);
+  addLog("Register User", "Register successful", user.email!);
 
   return {
     uid: user.uid,
@@ -120,7 +120,7 @@ export const signIn = async (email: string, password: string): Promise<User> => 
                `Please try again in ${lockStatus.remainingMinutes} minutes.`
     };
     // Log lockout as failure
-    addLog("Login", error.message, email);
+    addLog("Login Attempt", error.message, email);
     throw error;
   }
 
@@ -132,7 +132,7 @@ export const signIn = async (email: string, password: string): Promise<User> => 
     // Record successful login attempt
     await recordLoginAttempt(firebaseUser.uid, true);
     // Log successful login
-    addLog("Login", "Login successful", email);
+    addLog("Login Attempt", "Login successful", email);
     // Get user data from Firestore
     const userData = await getUserFromFirestore(firebaseUser.uid);
     return {
@@ -168,7 +168,7 @@ export const signIn = async (email: string, password: string): Promise<User> => 
         console.log('Failed to record login attempt in tracking system:', trackingError);
       }
       // Log failed login
-      addLog("Login", "Authentication failed", email);
+      addLog("Login Attempt", "Authentication failed", email);
       // Check if this failed attempt triggers a lockout
       const newLockStatus = await isAccountLocked(email);
       console.log('🔒 Lock status after failed attempt:', newLockStatus);
@@ -179,7 +179,7 @@ export const signIn = async (email: string, password: string): Promise<User> => 
         };
         console.log('🚫 Throwing lockout error:', lockoutError);
         // Log lockout as failure
-        addLog("Login", lockoutError.message, email);
+        addLog("Login Attempt", lockoutError.message, email);
         throw lockoutError;
       }
     }

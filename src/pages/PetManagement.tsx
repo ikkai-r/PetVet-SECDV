@@ -19,7 +19,7 @@ import { collection, query, where, onSnapshot, addDoc, updateDoc, doc } from "fi
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"; // Import storage functions
 import { User } from "firebase/auth";
 import { deletePet } from "@/services/firestore"; 
-import { petSchema, vaccinationRecordSchema, medicalRecordSchema, validateImageFile } from '@/lib/validation';
+import { petSchema, vaccinationRecordSchema, validateImageFile } from '@/lib/validation';
 import { logEvent } from "@/services/adminService";
 
 const calculateAge = (dateOfBirth: string): string => {
@@ -573,13 +573,13 @@ const PetManagement = () => {
         const errorMsg = validateImageFile(file);
         if (errorMsg) {
           setImageError(errorMsg.error);
-          addLog("Edit Pet", errorMsg.error);
+          addLog("Pet Record Validation", errorMsg.error);
           setImageFile(null);
           return;
         }
         setImageError(null);
         setImageFile(file);
-        addLog("Edit Pet", "Image file uploaded successfully");
+        addLog("Pet Record Validation", "Image file uploaded successfully");
         // Optionally, display a preview
         const reader = new FileReader();
         reader.onload = (event) => {
@@ -626,11 +626,11 @@ const PetManagement = () => {
       const errorMsg = validateImageFile(file);
       if (errorMsg) {
         setImageError(errorMsg.error);
-        addLog("Add Pet", errorMsg.error);
+        addLog("Pet Record Validation", errorMsg.error);
         setImageFile(null);
         return;
       }
-      addLog("Add Pet", "Image file uploaded successfully");
+      addLog("Pet Record Validation", "Image file uploaded successfully");
       setImageError(null);
       setImageFile(file);
       // Optionally, display a preview
@@ -1187,7 +1187,7 @@ const PetManagement = () => {
                   setLocalEditDataForm(prev => ({ ...prev, name: value }));
                   setEditPetErrors(prev => {
                     if (prev.name !== errorMsg && errorMsg) {
-                      addLog("Edit Pet", errorMsg);
+                      addLog("Pet Record Validation", errorMsg);
                     }
                     return { ...prev, name: errorMsg };
                   });
@@ -1205,7 +1205,7 @@ const PetManagement = () => {
                   setLocalEditDataForm(prev => ({ ...prev, species: value }));
                   setEditPetErrors(prev => {
                     if (prev.species !== errorMsg && errorMsg) {
-                      addLog("Edit Pet", errorMsg);
+                      addLog("Pet Record Validation", errorMsg);
                     }
                     return { ...prev, species: errorMsg };
                   });
@@ -1235,7 +1235,7 @@ const PetManagement = () => {
                   setLocalEditDataForm(prev => ({ ...prev, breed: value }));
                   setEditPetErrors(prev => {
                     if (prev.breed !== errorMsg && errorMsg) {
-                      addLog("Edit Pet", errorMsg);
+                      addLog("Pet Record Validation", errorMsg);
                     }
                     return { ...prev, breed: errorMsg };
                   });
@@ -1270,7 +1270,7 @@ const PetManagement = () => {
                   setLocalEditDataForm(prev => ({ ...prev, weight: value }));
                   setEditPetErrors(prev => {
                     if (prev.weight !== errorMsg && errorMsg) {
-                      addLog("Edit Pet", errorMsg);
+                      addLog("Pet Record Validation", errorMsg);
                     }
                     return { ...prev, weight: errorMsg };
                   });
@@ -1290,7 +1290,7 @@ const PetManagement = () => {
                   setLocalEditDataForm(prev => ({ ...prev, notes: value }));
                   setEditPetErrors(prev => {
                     if (prev.notes !== errorMsg && errorMsg) {
-                      addLog("Edit Pet", errorMsg);
+                      addLog("Pet Record Validation", errorMsg);
                     }
                     return { ...prev, notes: errorMsg };
                   });
@@ -1358,7 +1358,7 @@ const PetManagement = () => {
                   setNewPet({ ...newPet, name: value });
                   setNewPetErrors(prev => {
                     if (prev.name !== errorMsg && errorMsg) {
-                      addLog("Add Pet", errorMsg);
+                      addLog("Pet Record Validation", errorMsg);
                     }
                     return { ...prev, name: errorMsg };
                   });
@@ -1376,7 +1376,7 @@ const PetManagement = () => {
                   setNewPet({ ...newPet, species: value });
                   setNewPetErrors(prev => {
                     if (prev.species !== errorMsg && errorMsg) {
-                      addLog("Add Pet", errorMsg);
+                      addLog("Pet Record Validation", errorMsg);
                     }
                     return { ...prev, species: errorMsg };
                   });
@@ -1405,7 +1405,7 @@ const PetManagement = () => {
                   setNewPet({ ...newPet, breed: value });
                   setNewPetErrors(prev => {
                     if (prev.breed !== errorMsg && errorMsg) {
-                      addLog("Add Pet", errorMsg);
+                      addLog("Pet Record Validation", errorMsg);
                     }
                     return { ...prev, breed: errorMsg };
                   });
@@ -1440,7 +1440,7 @@ const PetManagement = () => {
                   setNewPet({ ...newPet, weight: value === "" ? "" : parseFloat(value) });
                   setNewPetErrors(prev => {
                     if (prev.weight !== errorMsg && errorMsg) {
-                      addLog("Add Pet", errorMsg);
+                      addLog("Pet Record Validation", errorMsg);
                     }
                     return { ...prev, weight: errorMsg };
                   });
@@ -1459,7 +1459,7 @@ const PetManagement = () => {
                   setNewPet({ ...newPet, notes: value });
                   setNewPetErrors(prev => {
                     if (prev.notes !== errorMsg && errorMsg) {
-                      addLog("Add Pet", errorMsg);
+                      addLog("Pet Record Validation", errorMsg);
                     }
                     return { ...prev, notes: errorMsg };
                   });
