@@ -116,7 +116,7 @@ export const changePassword = async (
     } else if (error.code === 'auth/weak-password') {
       throw new Error('New password is too weak');
     } else {
-      throw new Error('Failed to change password: ' + error.message);
+      throw new Error(error.message);
     }
   }
 };

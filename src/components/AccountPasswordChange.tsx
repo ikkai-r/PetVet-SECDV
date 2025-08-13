@@ -24,6 +24,7 @@ import {
   getLastLoginInfo,
   canChangePassword
 } from '@/services/passwordManagement';
+import { logEvent } from '@/services/adminService';
 import { 
   validatePassword, 
   getPasswordStrength, 
@@ -117,9 +118,34 @@ const AccountPasswordChange: React.FC<AccountPasswordChangeProps> = ({ isOpen, o
         newPassword: '',
         confirmPassword: ''
       });
+      // Log password change event
+      try {
+        const date = new Date();
+        await logEvent(
+          'Password Change',
+          date.toLocaleDateString() + " " + date.toLocaleTimeString(),
+          'User changed password',
+          firebaseUser.email || '',
+          true
+        );
+      } catch (logError) {
+        console.error('Failed to log password change event:', logError);
+      }
     } catch (error: any) {
       // Use error.message from passwordManagement for user feedback
       setError(error.message || "Failed to change password. Please try again.");
+       try {
+        const date = new Date();
+        await logEvent(
+          'Password Change',
+          date.toLocaleDateString() + " " + date.toLocaleTimeString(),
+          error.message || 'Failed to change password',
+          firebaseUser.email || '',
+          false
+        );
+      } catch (logError) {
+        console.error('Failed to log password change event:', logError);
+      }
     } finally {
       setLoading(false);
     }
