@@ -11,6 +11,15 @@ import { Badge } from '@/components/ui/badge';
 import { AlertCircle, Plus, Edit, Trash2, Users, PawPrint, Shield, Activity, UserPlus, Stethoscope } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationPrevious,
+  PaginationNext,
+  PaginationEllipsis,
+} from '@/components/ui/pagination';
 import { 
   createUserAccount, 
   getAllUsers, 
@@ -76,6 +85,11 @@ const AdminDashboard: React.FC = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const { toast } = useToast();
+  // Pagination state for logs
+  const [logsPage, setLogsPage] = useState(1);
+  const logsPageSize = 10;
+  const logsTotalPages = Math.max(1, Math.ceil(logs.length / logsPageSize));
+  const paginatedLogs = logs.slice((logsPage - 1) * logsPageSize, logsPage * logsPageSize);
 
   // Form states
   const [newUser, setNewUser] = useState({
@@ -581,47 +595,132 @@ const AdminDashboard: React.FC = () => {
               <CardTitle>System Logs</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Action</TableHead>
-                    <TableHead>Timestamp</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>User ID</TableHead>
-                    <TableHead>Details</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {logs.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell className="font-medium">{log.action}</TableCell>
-                      <TableCell>{log.timestamp}</TableCell>
-                      <TableCell>
-                        {log.success ? (
-                          <span className="text-green-600 font-semibold">Success</span>
-                        ) : (
-                          <span className="text-red-600 font-semibold">Failure</span>
-                        )}
-                      </TableCell>
-                      <TableCell>{log.userEmail || 'N/A'}</TableCell>
-                      <TableCell>{log.details || 'No details'}</TableCell>
+              <div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Action</TableHead>
+                      <TableHead>Timestamp</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>User ID</TableHead>
+                      <TableHead>Details</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {/* <Alert>
-                <Activity className="h-4 w-4" />
-                <AlertDescription>
-                  System logging interface is currently under development. This will include:
-                  <ul className="list-disc list-inside mt-2 space-y-1">
-                    <li>User authentication logs</li>
-                    <li>Failed login attempts</li>
-                    <li>Account security events</li>
-                    <li>System administration actions</li>
-                    <li>Pet data modifications</li>
-                  </ul>
-                </AlertDescription>
-              </Alert> */}
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedLogs.map((log) => (
+                      <TableRow key={log.id}>
+                        <TableCell className="font-medium">{log.action}</TableCell>
+                        <TableCell>{log.timestamp}</TableCell>
+                        <TableCell>
+                          {log.success ? (
+                            <span className="text-green-600 font-semibold">Success</span>
+                          ) : (
+                            <span className="text-red-600 font-semibold">Failure</span>
+                          )}
+                        </TableCell>
+                        <TableCell>{log.userEmail || 'N/A'}</TableCell>
+                        <TableCell>{log.details || 'No details'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {/* ShadCN Pagination Controls */}
+                <Pagination className="mt-4">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        href="#"
+                        onClick={e => {
+                          e.preventDefault();
+                          if (logsPage > 1) setLogsPage(logsPage - 1);
+                        }}
+                        aria-disabled={logsPage === 1}
+                        tabIndex={logsPage === 1 ? -1 : 0}
+                      />
+                    </PaginationItem>
+                    {/* Page numbers with ellipsis if needed */}
+                    {logsTotalPages <= 7 ? (
+                      Array.from({ length: logsTotalPages }, (_, i) => (
+                        <PaginationItem key={i + 1}>
+                          <PaginationLink
+                            href="#"
+                            isActive={logsPage === i + 1}
+                            onClick={e => {
+                              e.preventDefault();
+                              setLogsPage(i + 1);
+                            }}
+                          >
+                            {i + 1}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ))
+                    ) : (
+                      <>
+                        {/* First page */}
+                        <PaginationItem>
+                          <PaginationLink
+                            href="#"
+                            isActive={logsPage === 1}
+                            onClick={e => {
+                              e.preventDefault();
+                              setLogsPage(1);
+                            }}
+                          >1</PaginationLink>
+                        </PaginationItem>
+                        {/* Ellipsis before current page if needed */}
+                        {logsPage > 4 && (
+                          <PaginationItem>
+                            <PaginationEllipsis />
+                          </PaginationItem>
+                        )}
+                        {/* Pages around current */}
+                        {Array.from({ length: 3 }, (_, i) => logsPage - 1 + i)
+                          .filter(page => page > 1 && page < logsTotalPages)
+                          .map(page => (
+                            <PaginationItem key={page}>
+                              <PaginationLink
+                                href="#"
+                                isActive={logsPage === page}
+                                onClick={e => {
+                                  e.preventDefault();
+                                  setLogsPage(page);
+                                }}
+                              >{page}</PaginationLink>
+                            </PaginationItem>
+                          ))}
+                        {/* Ellipsis after current page if needed */}
+                        {logsPage < logsTotalPages - 3 && (
+                          <PaginationItem>
+                            <PaginationEllipsis />
+                          </PaginationItem>
+                        )}
+                        {/* Last page */}
+                        <PaginationItem>
+                          <PaginationLink
+                            href="#"
+                            isActive={logsPage === logsTotalPages}
+                            onClick={e => {
+                              e.preventDefault();
+                              setLogsPage(logsTotalPages);
+                            }}
+                          >{logsTotalPages}</PaginationLink>
+                        </PaginationItem>
+                      </>
+                    )}
+                    <PaginationItem>
+                      <PaginationNext
+                        href="#"
+                        onClick={e => {
+                          e.preventDefault();
+                          if (logsPage < logsTotalPages) setLogsPage(logsPage + 1);
+                        }}
+                        aria-disabled={logsPage === logsTotalPages}
+                        tabIndex={logsPage === logsTotalPages ? -1 : 0}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

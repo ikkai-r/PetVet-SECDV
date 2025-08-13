@@ -403,12 +403,12 @@ export const getUserStatistics = async () => {
   }
 };
 
-export const getSystemLogs = async (logLimit: number = 50) => {
+export const getSystemLogs = async () => {
   try { 
     console.log('📋 Fetching system logs...');
 
     const logsRef = collection(db, 'logs');
-    const q = query(logsRef, orderBy('timestamp', 'desc'), fsLimit(logLimit));
+    const q = query(logsRef, orderBy('timestamp', 'desc'));
     const snapshot = await getDocs(q);
 
     const logs: Log[] = await Promise.all(
