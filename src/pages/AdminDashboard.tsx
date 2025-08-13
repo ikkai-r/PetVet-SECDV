@@ -25,7 +25,6 @@ import { UserRole } from '@/types';
 import { AccountSecurityManagement } from '@/components/AccountSecurityManagement';
 import { BruteForceTestComponent } from '@/components/BruteForceTestComponent';
 import Navigation from '@/components/Navigation';
-import { db } from '@/lib/firebase';
 
 interface User {
   id: string;

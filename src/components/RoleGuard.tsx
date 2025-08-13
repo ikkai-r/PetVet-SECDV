@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { UserRole } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShieldX, AlertTriangle } from 'lucide-react';
+import { logEvent } from '@/services/adminService';
 
 interface RoleGuardProps {
   children: ReactNode;
@@ -38,6 +39,17 @@ export const RoleGuard = ({
   }
 
   if (!allowedRoles.includes(user.role)) {
+    const date = new Date();
+    const timestamp = date.toLocaleDateString() + " " + date.toLocaleTimeString();
+        
+    logEvent(
+        "Access Control",
+        timestamp,
+        "Unauthorized access attempt to a page requiring roles: " + allowedRoles.join(", "),
+        user.email,
+        false
+    );
+
     return fallback || (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
