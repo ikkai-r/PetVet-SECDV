@@ -89,8 +89,9 @@ const PetManagement = () => {
   // Log validation failures (can be replaced with backend logging)
   function addLog(action: string, details: string) {
     if (!details) return;
+    const date = new Date();
     const userEmail = user?.email || "anonymous";
-    const timestamp = new Date().toLocaleDateString() + " " + new Date().toLocaleTimeString();
+    const timestamp = date.toLocaleDateString() + " " + date.toLocaleTimeString();
     const success = details.includes("successfully") || details.includes("added") || details.includes("updated");
     
     logEvent(action, timestamp, details, userEmail, success);
@@ -235,7 +236,7 @@ const PetManagement = () => {
         photo: photoURL
       };
 
-      await addDoc(collection(db, "pets"), {
+      const docRef = await addDoc(collection(db, "pets"), {
         ...petData,
         userId: user.uid,
         createdAt: new Date(),
@@ -248,12 +249,13 @@ const PetManagement = () => {
       // setShowAddPet(false);
       setNewPet({ name: "", species: "", breed: "", dateOfBirth: "", weight: "", notes: "", photo: "" });
       setImageFile(null); // Clear image file
+      addLog("Add Pet", `Pet profile added successfully. Pet ID: ${docRef.id}`);
     } catch (e) {
       console.error("Error adding pet:", e);
       setError("Failed to add pet. Please try again.");
+      addLog("Add Pet", "Error adding pet:" + e);
     } finally {
       setLoading(false);
-      addLog("Add Pet", "Pet profile added successfully");
     }
   };
 
@@ -611,9 +613,10 @@ const PetManagement = () => {
       } catch (error) {
         console.error("Error updating pet profile:", error);
         setError("Failed to update pet profile. Please try again.");
+        addLog("Edit Pet", `Error updating pet profile. Pet ID: ${selectedPet.id}. ${error.message}`);
       } finally {
         setLoading(false);
-        addLog("Edit Pet", "Pet profile updated successfully");
+        addLog("Edit Pet", `Pet profile updated successfully. Pet ID: ${selectedPet.id}`);
       }
     };
 
@@ -1182,11 +1185,12 @@ const PetManagement = () => {
                   const value = e.target.value;
                   const errorMsg = validatePetField("name", value);
                   setLocalEditDataForm(prev => ({ ...prev, name: value }));
-                  setEditPetErrors(prev => ({
-                    ...prev,
-                    name: errorMsg
-                  }));
-                  if (errorMsg) addLog("Edit Pet", errorMsg);
+                  setEditPetErrors(prev => {
+                    if (prev.name !== errorMsg && errorMsg) {
+                      addLog("Edit Pet", errorMsg);
+                    }
+                    return { ...prev, name: errorMsg };
+                  });
                 }}
                 className={editPetErrors.name ? "border-red-500" : ""}
               />
@@ -1199,11 +1203,12 @@ const PetManagement = () => {
                 onValueChange={(value) => {
                   const errorMsg = validatePetField("species", value);
                   setLocalEditDataForm(prev => ({ ...prev, species: value }));
-                  setEditPetErrors(prev => ({
-                    ...prev,
-                    species: errorMsg
-                  }));
-                  if (errorMsg) addLog("Edit Pet", errorMsg);
+                  setEditPetErrors(prev => {
+                    if (prev.species !== errorMsg && errorMsg) {
+                      addLog("Edit Pet", errorMsg);
+                    }
+                    return { ...prev, species: errorMsg };
+                  });
                 }}
               >
                 <SelectTrigger>
@@ -1228,11 +1233,12 @@ const PetManagement = () => {
                   const value = e.target.value;
                   const errorMsg = value === "" ? undefined : validatePetField("breed", value);
                   setLocalEditDataForm(prev => ({ ...prev, breed: value }));
-                  setEditPetErrors(prev => ({
-                    ...prev,
-                    breed: errorMsg
-                  }));
-                  if (errorMsg) addLog("Edit Pet", errorMsg);
+                  setEditPetErrors(prev => {
+                    if (prev.breed !== errorMsg && errorMsg) {
+                      addLog("Edit Pet", errorMsg);
+                    }
+                    return { ...prev, breed: errorMsg };
+                  });
                 }}
                 className={editPetErrors.breed ? "border-red-500" : ""}
               />
@@ -1262,11 +1268,12 @@ const PetManagement = () => {
                   const value = e.target.value;
                   const errorMsg = validatePetField("weight", value === "" ? 0 : parseFloat(value));
                   setLocalEditDataForm(prev => ({ ...prev, weight: value }));
-                  setEditPetErrors(prev => ({
-                    ...prev,
-                    weight: errorMsg
-                  }));
-                  if (errorMsg) addLog("Edit Pet", errorMsg);
+                  setEditPetErrors(prev => {
+                    if (prev.weight !== errorMsg && errorMsg) {
+                      addLog("Edit Pet", errorMsg);
+                    }
+                    return { ...prev, weight: errorMsg };
+                  });
                 }}
                 className={editPetErrors.weight ? "border-red-500" : ""}
               />
@@ -1281,11 +1288,12 @@ const PetManagement = () => {
                   const value = e.target.value;
                   const errorMsg = value === "" ? undefined : validatePetField("notes", value);
                   setLocalEditDataForm(prev => ({ ...prev, notes: value }));
-                  setEditPetErrors(prev => ({
-                    ...prev,
-                    notes: errorMsg
-                  }));
-                  if (errorMsg) addLog("Edit Pet", errorMsg);
+                  setEditPetErrors(prev => {
+                    if (prev.notes !== errorMsg && errorMsg) {
+                      addLog("Edit Pet", errorMsg);
+                    }
+                    return { ...prev, notes: errorMsg };
+                  });
                 }}
                 className={editPetErrors.notes ? "border-red-500" : ""}
               />
@@ -1348,11 +1356,12 @@ const PetManagement = () => {
                   const value = e.target.value;
                   const errorMsg = validatePetField("name", value);
                   setNewPet({ ...newPet, name: value });
-                  setNewPetErrors(prev => ({
-                    ...prev,
-                    name: errorMsg
-                  }));
-                  if (errorMsg) addLog("Add Pet", errorMsg);
+                  setNewPetErrors(prev => {
+                    if (prev.name !== errorMsg && errorMsg) {
+                      addLog("Add Pet", errorMsg);
+                    }
+                    return { ...prev, name: errorMsg };
+                  });
                 }}
                 className={newPetErrors.name ? "border-red-500" : ""}
               />
@@ -1365,11 +1374,12 @@ const PetManagement = () => {
                 onValueChange={(value) => {
                   const errorMsg = validatePetField("species", value);
                   setNewPet({ ...newPet, species: value });
-                  setNewPetErrors(prev => ({
-                    ...prev,
-                    species: errorMsg
-                  }));
-                  if (errorMsg) addLog("Add Pet", errorMsg);
+                  setNewPetErrors(prev => {
+                    if (prev.species !== errorMsg && errorMsg) {
+                      addLog("Add Pet", errorMsg);
+                    }
+                    return { ...prev, species: errorMsg };
+                  });
                 }}
               >
                 <SelectTrigger>
@@ -1393,11 +1403,12 @@ const PetManagement = () => {
                   const value = e.target.value;
                   const errorMsg = value === "" ? undefined : validatePetField("breed", value);
                   setNewPet({ ...newPet, breed: value });
-                  setNewPetErrors(prev => ({
-                    ...prev,
-                    breed: errorMsg
-                  }));
-                  if (errorMsg) addLog("Add Pet", errorMsg);
+                  setNewPetErrors(prev => {
+                    if (prev.breed !== errorMsg && errorMsg) {
+                      addLog("Add Pet", errorMsg);
+                    }
+                    return { ...prev, breed: errorMsg };
+                  });
                 }}
                 className={newPetErrors.breed ? "border-red-500" : ""}
               />
@@ -1427,11 +1438,12 @@ const PetManagement = () => {
                   const value = e.target.value;
                   const errorMsg = validatePetField("weight", value === "" ? 0 : parseFloat(value));
                   setNewPet({ ...newPet, weight: value === "" ? "" : parseFloat(value) });
-                  setNewPetErrors(prev => ({
-                    ...prev,
-                    weight: errorMsg
-                  }));
-                  if (errorMsg) addLog("Add Pet", errorMsg);
+                  setNewPetErrors(prev => {
+                    if (prev.weight !== errorMsg && errorMsg) {
+                      addLog("Add Pet", errorMsg);
+                    }
+                    return { ...prev, weight: errorMsg };
+                  });
                 }}
                 className={newPetErrors.weight ? "border-red-500" : ""}
               />
@@ -1445,11 +1457,12 @@ const PetManagement = () => {
                   const value = e.target.value;
                   const errorMsg = value === "" ? undefined : validatePetField("notes", value);
                   setNewPet({ ...newPet, notes: value });
-                  setNewPetErrors(prev => ({
-                    ...prev,
-                    notes: errorMsg
-                  }));
-                  if (errorMsg) addLog("Add Pet", errorMsg);
+                  setNewPetErrors(prev => {
+                    if (prev.notes !== errorMsg && errorMsg) {
+                      addLog("Add Pet", errorMsg);
+                    }
+                    return { ...prev, notes: errorMsg };
+                  });
                 }}
                 placeholder="Any additional notes..."
                 className={newPetErrors.notes ? "border-red-500" : ""}
