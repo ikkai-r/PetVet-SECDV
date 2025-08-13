@@ -10,7 +10,8 @@ import {
   where, 
   orderBy, 
   Timestamp,
-  addDoc
+  addDoc,
+  DocumentReference
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -233,7 +234,7 @@ export const createMedicalRecord = async (
   petId: string, 
   vetId: string, 
   recordData: Omit<MedicalRecord, 'id' | 'petId' | 'vetId' | 'createdAt' | 'updatedAt'>
-): Promise<void> => {
+): Promise<DocumentReference> => {
   try {
     console.log('📝 Creating medical record for pet:', petId);
     
@@ -264,9 +265,11 @@ export const createMedicalRecord = async (
       updatedAt: Timestamp.now()
     };
     
-    await addDoc(collection(db, 'medicalRecords'), medicalRecord);
+    const docRef = await addDoc(collection(db, 'medicalRecords'), medicalRecord);
     
     console.log('✅ Medical record created successfully');
+
+    return docRef;
   } catch (error) {
     console.error('❌ Error creating medical record:', error);
     throw error;

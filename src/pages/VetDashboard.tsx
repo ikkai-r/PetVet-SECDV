@@ -42,6 +42,9 @@ import {
   MedicalRecord,
   AssignedPetOwner
 } from '@/services/vetService';
+import { medicalRecordFieldSchemas } from '@/lib/validation';
+import { logEvent } from "@/services/adminService";
+import { Timestamp } from 'firebase/firestore';
 
 const VetDashboard: React.FC = () => {
   const [pets, setPets] = useState<VetPet[]>([]);
@@ -95,11 +98,48 @@ const VetDashboard: React.FC = () => {
     nextVisitDate: undefined
   });
 
+  const [recordErrors, setRecordErrors] = useState<{
+    visitType?: string;
+    weight?: string;
+    temperature?: string;
+    heartRate?: string;
+    symptoms?: string;
+    diagnosis?: string;
+    treatment?: string;
+    medications?: string;
+    notes?: string;
+    cost?: string;
+  }>({});
+
   useEffect(() => {
     if (user?.uid) {
       loadDashboardData();
     }
   }, [user]);
+
+  const handleRecordFieldChange = (field: keyof typeof recordForm, value: string) => {
+    setRecordForm(prev => ({ ...prev, [field]: value }));
+    if (medicalRecordFieldSchemas[field]) {
+      const result = medicalRecordFieldSchemas[field].safeParse(value);
+      const errorMsg = result.success ? undefined : result.error.errors[0].message;
+      setRecordErrors(prev => {
+        if (prev[field] !== errorMsg && errorMsg) {
+          addLog("Medical Record Validation", `${errorMsg}`);
+        }
+        return { ...prev, [field]: errorMsg };
+      });
+    }
+  };
+
+  function addLog(action: string, details: string) {
+    if (!details) return;
+    const date = new Date();
+    const userEmail = user?.email || "anonymous";
+    const timestamp = date.toLocaleDateString() + " " + date.toLocaleTimeString();
+    const success = details.includes("successfully") || details.includes("added") || details.includes("updated");
+    
+    logEvent(action, timestamp, details, userEmail, success);
+  }
 
   const loadDashboardData = async () => {
     if (!user?.uid) return;
@@ -164,7 +204,7 @@ const VetDashboard: React.FC = () => {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to update pet details",
+        description: "Failed to update pet details",
         variant: "destructive"
       });
     }
@@ -172,31 +212,41 @@ const VetDashboard: React.FC = () => {
 
   const handleCreateRecord = async () => {
     if (!selectedPet || !user?.uid) return;
-
+    // Log validation errors before saving
+    if (Object.values(recordErrors).some(Boolean)) {
+      addLog("Add Medical Record", "Validation errors present. Record not saved.");
+      toast({
+        title: "Error",
+        description: "Please fix validation errors before saving.",
+        variant: "destructive"
+      });
+      return;
+    }
     try {
-      await createMedicalRecord(selectedPet.id, user.uid, {
-        ...recordForm,
-        date: new Date(),
-        weight: recordForm.weight ? parseFloat(recordForm.weight) : undefined,
-        temperature: recordForm.temperature ? parseFloat(recordForm.temperature) : undefined,
-        heartRate: recordForm.heartRate ? parseInt(recordForm.heartRate) : undefined,
-        cost: recordForm.cost ? parseFloat(recordForm.cost) : undefined,
-        nextVisitDate: recordForm.nextVisitDate ? window.require?.('firebase/firestore').Timestamp.fromDate(recordForm.nextVisitDate) ?? require('firebase/firestore').Timestamp.fromDate(recordForm.nextVisitDate) : undefined
-      } as any);
-      
+      const docRef = await createMedicalRecord(selectedPet.id, user.uid, {
+          ...recordForm,
+          date: new Date(),
+          weight: recordForm.weight ? parseFloat(recordForm.weight) : undefined,
+          temperature: recordForm.temperature ? parseFloat(recordForm.temperature) : undefined,
+          heartRate: recordForm.heartRate ? parseInt(recordForm.heartRate) : undefined,
+          cost: recordForm.cost ? parseFloat(recordForm.cost) : undefined,
+          nextVisitDate: recordForm.nextVisitDate ? Timestamp.fromDate(recordForm.nextVisitDate) : undefined
+        } as any);
+
+      addLog("Add Medical Record", `Medical record created successfully. Medical record ID: ${docRef.id}`);
       toast({
         title: "Success",
         description: "Medical record created successfully"
       });
-      
       setIsRecordDialogOpen(false);
       resetRecordForm();
       loadPetMedicalRecords(selectedPet.id);
       loadDashboardData();
     } catch (error: any) {
+      addLog("Add Medical Record", `Error creating medical record: ${error.message || error}`);
       toast({
         title: "Error",
-        description: error.message || "Failed to create medical record",
+        description: "Failed to create medical record",
         variant: "destructive"
       });
     }
@@ -204,6 +254,16 @@ const VetDashboard: React.FC = () => {
 
   const handleUpdateRecord = async () => {
     if (!editingRecord) return;
+    // Log validation errors before saving
+    if (Object.values(recordErrors).some(Boolean)) {
+      addLog("Edit Medical Record", "Validation errors present. Record not updated.");
+      toast({
+        title: "Error",
+        description: "Please fix validation errors before saving.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
       await updateMedicalRecord(editingRecord.id, {
@@ -212,17 +272,13 @@ const VetDashboard: React.FC = () => {
         temperature: recordForm.temperature ? parseFloat(recordForm.temperature) : undefined,
         heartRate: recordForm.heartRate ? parseInt(recordForm.heartRate) : undefined,
         cost: recordForm.cost ? parseFloat(recordForm.cost) : undefined,
-        nextVisitDate: recordForm.nextVisitDate
-          ? (window.require?.('firebase/firestore').Timestamp.fromDate(recordForm.nextVisitDate) ??
-             require('firebase/firestore').Timestamp.fromDate(recordForm.nextVisitDate))
-          : undefined
+        nextVisitDate: recordForm.nextVisitDate ? Timestamp.fromDate(recordForm.nextVisitDate) : undefined
       });
-      
+      addLog("Edit Medical Record", `Medical record updated successfully. Medical record ID: ${editingRecord.id}`);
       toast({
         title: "Success",
         description: "Medical record updated successfully"
       });
-      
       setIsRecordDialogOpen(false);
       setEditingRecord(null);
       resetRecordForm();
@@ -230,9 +286,10 @@ const VetDashboard: React.FC = () => {
         loadPetMedicalRecords(selectedPet.id);
       }
     } catch (error: any) {
+      addLog("Edit Medical Record", `Error updating medical record: ${error.message || error}`);
       toast({
         title: "Error",
-        description: error.message || "Failed to update medical record",
+        description: "Failed to update medical record",
         variant: "destructive"
       });
     }
@@ -245,6 +302,7 @@ const VetDashboard: React.FC = () => {
 
     try {
       await deleteMedicalRecord(recordId);
+      addLog("Delete Medical Record", `Medical record deleted successfully. Medical record ID: ${recordId}`);
       toast({
         title: "Success",
         description: "Medical record deleted successfully"
@@ -254,9 +312,10 @@ const VetDashboard: React.FC = () => {
         loadPetMedicalRecords(selectedPet.id);
       }
     } catch (error: any) {
+      addLog("Delete Medical Record", `Error deleting medical record: ${error.message || error}`);
       toast({
         title: "Error",
-        description: error.message || "Failed to delete medical record",
+        description: "Failed to delete medical record",
         variant: "destructive"
       });
     }
@@ -278,10 +337,13 @@ const VetDashboard: React.FC = () => {
     });
   };
 
+  const clearRecordErrors = () => setRecordErrors({});
+
   const openNewRecordDialog = (pet: VetPet) => {
     setSelectedPet(pet);
     resetRecordForm();
     setEditingRecord(null);
+    clearRecordErrors();
     setIsRecordDialogOpen(true);
   };
 
@@ -300,6 +362,7 @@ const VetDashboard: React.FC = () => {
       cost: record.cost?.toString() || '',
       nextVisitDate: record.nextVisitDate?.toDate()
     });
+    clearRecordErrors();
     setIsRecordDialogOpen(true);
   };
 
@@ -686,12 +749,11 @@ const VetDashboard: React.FC = () => {
                     type="number"
                     step="0.1"
                     value={recordForm.weight}
-                    onChange={(e) => setRecordForm({
-                      ...recordForm,
-                      weight: e.target.value
-                    })}
+                    onChange={e => handleRecordFieldChange("weight", e.target.value)}
+                    className={recordErrors.weight ? "border-red-500" : ""}
                   />
-                </div>
+                  {recordErrors.weight && <span className="text-red-500 text-xs">{recordErrors.weight}</span>}
+                  </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -702,11 +764,10 @@ const VetDashboard: React.FC = () => {
                     type="number"
                     step="0.1"
                     value={recordForm.temperature}
-                    onChange={(e) => setRecordForm({
-                      ...recordForm,
-                      temperature: e.target.value
-                    })}
+                    onChange={e => handleRecordFieldChange("temperature", e.target.value)}
+                    className={recordErrors.temperature ? "border-red-500" : ""}
                   />
+                  {recordErrors.temperature && <span className="text-red-500 text-xs">{recordErrors.temperature}</span>}
                 </div>
                 <div>
                   <Label htmlFor="heartRate">Heart Rate (bpm)</Label>
@@ -714,11 +775,10 @@ const VetDashboard: React.FC = () => {
                     id="heartRate"
                     type="number"
                     value={recordForm.heartRate}
-                    onChange={(e) => setRecordForm({
-                      ...recordForm,
-                      heartRate: e.target.value
-                    })}
+                    onChange={e => handleRecordFieldChange("heartRate", e.target.value)}
+                    className={recordErrors.heartRate ? "border-red-500" : ""}
                   />
+                  {recordErrors.heartRate && <span className="text-red-500 text-xs">{recordErrors.heartRate}</span>}
                 </div>
               </div>
 
@@ -727,12 +787,11 @@ const VetDashboard: React.FC = () => {
                 <Textarea
                   id="symptoms"
                   value={recordForm.symptoms}
-                  onChange={(e) => setRecordForm({
-                    ...recordForm,
-                    symptoms: e.target.value
-                  })}
+                  onChange={e => handleRecordFieldChange("symptoms", e.target.value)}
+                  className={recordErrors.symptoms ? "border-red-500" : ""}
                   placeholder="Describe the symptoms observed..."
                 />
+                {recordErrors.symptoms && <span className="text-red-500 text-xs">{recordErrors.symptoms}</span>}
               </div>
 
               <div>
@@ -740,12 +799,11 @@ const VetDashboard: React.FC = () => {
                 <Textarea
                   id="diagnosis"
                   value={recordForm.diagnosis}
-                  onChange={(e) => setRecordForm({
-                    ...recordForm,
-                    diagnosis: e.target.value
-                  })}
+                  onChange={e => handleRecordFieldChange("diagnosis", e.target.value)}
+                  className={recordErrors.diagnosis ? "border-red-500" : ""}
                   placeholder="Enter the diagnosis..."
                 />
+                {recordErrors.diagnosis && <span className="text-red-500 text-xs">{recordErrors.diagnosis}</span>}
               </div>
 
               <div>
@@ -753,12 +811,11 @@ const VetDashboard: React.FC = () => {
                 <Textarea
                   id="treatment"
                   value={recordForm.treatment}
-                  onChange={(e) => setRecordForm({
-                    ...recordForm,
-                    treatment: e.target.value
-                  })}
+                  onChange={e => handleRecordFieldChange("treatment", e.target.value)}
+                  className={recordErrors.treatment ? "border-red-500" : ""}
                   placeholder="Describe the treatment provided..."
                 />
+                {recordErrors.treatment && <span className="text-red-500 text-xs">{recordErrors.treatment}</span>}
               </div>
 
               <div>
@@ -766,12 +823,11 @@ const VetDashboard: React.FC = () => {
                 <Textarea
                   id="medications"
                   value={recordForm.medications}
-                  onChange={(e) => setRecordForm({
-                    ...recordForm,
-                    medications: e.target.value
-                  })}
+                  onChange={e => handleRecordFieldChange("medications", e.target.value)}
+                  className={recordErrors.medications ? "border-red-500" : ""}
                   placeholder="List medications and dosages..."
                 />
+                {recordErrors.medications && <span className="text-red-500 text-xs">{recordErrors.medications}</span>}
               </div>
 
               <div>
@@ -779,12 +835,11 @@ const VetDashboard: React.FC = () => {
                 <Textarea
                   id="notes"
                   value={recordForm.notes}
-                  onChange={(e) => setRecordForm({
-                    ...recordForm,
-                    notes: e.target.value
-                  })}
+                  onChange={e => handleRecordFieldChange("notes", e.target.value)}
+                  className={recordErrors.notes ? "border-red-500" : ""}
                   placeholder="Any additional notes..."
                 />
+                {recordErrors.notes && <span className="text-red-500 text-xs">{recordErrors.notes}</span>}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -795,11 +850,10 @@ const VetDashboard: React.FC = () => {
                     type="number"
                     step="0.01"
                     value={recordForm.cost}
-                    onChange={(e) => setRecordForm({
-                      ...recordForm,
-                      cost: e.target.value
-                    })}
+                    onChange={e => handleRecordFieldChange("cost", e.target.value)}
+                    className={recordErrors.cost ? "border-red-500" : ""}
                   />
+                  {recordErrors.cost && <span className="text-red-500 text-xs">{recordErrors.cost}</span>}
                 </div>
                 <div>
                   <Label>Next Visit Date</Label>
@@ -837,6 +891,7 @@ const VetDashboard: React.FC = () => {
                 setIsRecordDialogOpen(false);
                 setEditingRecord(null);
                 resetRecordForm();
+                clearRecordErrors();
               }}>
                 Cancel
               </Button>

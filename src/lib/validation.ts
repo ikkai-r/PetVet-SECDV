@@ -32,23 +32,49 @@ export const petSchema = z.object({
     .optional(),
 });
 
+
+export const medicalRecordFieldSchemas = {
+  visitType: z.string().min(1, "Visit type is required"),
+  weight: z.string()
+    .refine(val => val === '' || (/^\d+(\.\d{1,2})?$/.test(val) && parseFloat(val) > 0 && parseFloat(val) < 1000), {
+      message: "Weight must be a positive number with up to 2 decimal places and less than 1000"
+    }),
+  temperature: z.string()
+    .refine(val => val === '' || (/^\d+(\.\d{1,2})?$/.test(val) && parseFloat(val) >= 90 && parseFloat(val) <= 110), {
+      message: "Temperature must be between 90 and 110°C"
+    }),
+  heartRate: z.string()
+    .refine(val => val === '' || (/^\d+$/.test(val) && parseInt(val) > 0 && parseInt(val) < 400), {
+      message: "Heart rate must be a positive integer less than 400"
+    }),
+  symptoms: z.string().max(500, "Symptoms must be less than 500 characters"),
+  diagnosis: z.string().min(1, "Diagnosis is required").max(500, "Diagnosis must be less than 500 characters"),
+  treatment: z.string().min(1, "Treatment is required").max(500, "Treatment must be less than 500 characters"),
+  medications: z.string().max(500, "Medications must be less than 500 characters"),
+  notes: z.string().max(1000, "Notes must be less than 1000 characters"),
+  cost: z.string()
+    .refine(val => val === '' || (/^\d+(\.\d{1,2})?$/.test(val) && parseFloat(val) >= 0), {
+      message: "Cost must be a positive number with up to 2 decimal places"
+    }),
+};
+
 // Medical record validation schema
-export const medicalRecordSchema = z.object({
-  highlight: z.string()
-    .min(1, "Highlight is required")
-    .max(100, "Highlight must be less than 100 characters"),
-  date: z.string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
-  temperature: z.number()
-    .min(90, "Temperature seems too low")
-    .max(110, "Temperature seems too high")
-    .optional(),
-  symptoms: z.array(z.string().max(100, "Each symptom must be less than 100 characters"))
-    .max(10, "Too many symptoms listed"),
-  treatment: z.string()
-    .min(1, "Treatment is required")
-    .max(500, "Treatment description must be less than 500 characters"),
-});
+// export const medicalRecordSchema = z.object({
+//   highlight: z.string()
+//     .min(1, "Highlight is required")
+//     .max(100, "Highlight must be less than 100 characters"),
+//   date: z.string()
+//     .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+//   temperature: z.number()
+//     .min(90, "Temperature seems too low")
+//     .max(110, "Temperature seems too high")
+//     .optional(),
+//   symptoms: z.array(z.string().max(100, "Each symptom must be less than 100 characters"))
+//     .max(10, "Too many symptoms listed"),
+//   treatment: z.string()
+//     .min(1, "Treatment is required")
+//     .max(500, "Treatment description must be less than 500 characters"),
+// });
 
 // Vaccination record validation schema
 export const vaccinationRecordSchema = z.object({
