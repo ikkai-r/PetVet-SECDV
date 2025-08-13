@@ -10,7 +10,7 @@ import {
 } from 'firebase/auth';
 import { auth, db} from '@/lib/firebase';
 import { User, UserRole } from '@/types';
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, collection, addDoc, query, orderBy, limit, getDocs, where } from "firebase/firestore";
 import { validatePassword } from '@/lib/passwordValidation';
 import { verifyPasswordSecurity } from '@/lib/passwordSecurity';
 import { 
@@ -129,12 +129,17 @@ export const signIn = async (email: string, password: string): Promise<User> => 
     const firebaseUser = userCredential.user;
     // Clear any failed attempts on successful login
     await clearFailedAttempts(email);
-    // Record successful login attempt
+    // Record successful login attempt (legacy)
     await recordLoginAttempt(firebaseUser.uid, true);
+    // Record login audit (new)
+    await recordLoginAudit(email, true);
     // Log successful login
     addLog("Login Attempt", "Login successful", email);
     // Get user data from Firestore
     const userData = await getUserFromFirestore(firebaseUser.uid);
+    // Get last login attempt
+    const lastLogin = await getLastLoginAttempt(firebaseUser.uid);
+    // Attach lastLogin to user object for frontend display
     return {
       uid: firebaseUser.uid,
       email: firebaseUser.email!,
@@ -147,6 +152,7 @@ export const signIn = async (email: string, password: string): Promise<User> => 
       }),
       isVerified: userData?.isVerified || false,
       permissions: userData?.permissions,
+      lastLoginAttempt: lastLogin
     };
   } catch (error: any) {
     console.log('🔍 Auth Error:', error.code, error.message);
@@ -163,12 +169,15 @@ export const signIn = async (email: string, password: string): Promise<User> => 
         const userData = await getUserFromFirestore(email);
         if (userData?.uid) {
           await recordLoginAttempt(userData.uid, false);
+          // Record login audit (new, failed)
         }
       } catch (trackingError) {
         console.log('Failed to record login attempt in tracking system:', trackingError);
       }
       // Log failed login
       addLog("Login Attempt", "Authentication failed", email);
+      await recordLoginAudit(email, false);
+
       // Check if this failed attempt triggers a lockout
       const newLockStatus = await isAccountLocked(email);
       console.log('🔒 Lock status after failed attempt:', newLockStatus);
@@ -308,3 +317,50 @@ export const onAuthStateChange = (callback: (user: User | null) => void) => {
     }
   });
 };
+
+// Record login attempt in Firestore subcollection
+async function recordLoginAudit(email: string, success: boolean) {
+  try {
+    // Query user by email to get UID
+    const usersQuery = query(collection(db, "users"), where("email", "==", email));
+    const usersSnapshot = await getDocs(usersQuery);
+    if (usersSnapshot.empty) return; // Only record for valid emails
+    const userDoc = usersSnapshot.docs[0];
+    const uid = userDoc.id;
+    const date = new Date();
+    await addDoc(collection(db, "users", uid, "loginAttempts"), {
+      timestamp: date.toLocaleDateString() + " " + date.toLocaleTimeString(),
+      success
+    });
+  } catch (error) {
+    console.error("Error recording login audit:", error);
+  }
+}
+
+// Get last login attempt (excluding current)
+export async function getLastLoginAttempt(email: string): Promise<{ timestamp: string, success: boolean } | null> {
+  try {
+    // Query user by email to get UID
+    const usersQuery = query(collection(db, "users"), where("email", "==", email));
+    const usersSnapshot = await getDocs(usersQuery);
+    if (usersSnapshot.empty) return null;
+    const userDoc = usersSnapshot.docs[0];
+    const uid = userDoc.id;
+    // Now query loginAttempts for this UID
+    const q = query(
+      collection(db, "users", uid, "loginAttempts"),
+      orderBy("timestamp", "desc"),
+      limit(2)
+    );
+    const snapshot = await getDocs(q);
+    const attempts = snapshot.docs.map(doc => doc.data());
+    // Return the second most recent (last before current)
+    if (attempts.length > 1) {
+      return { timestamp: attempts[1].timestamp, success: attempts[1].success };
+    }
+    return null;
+  } catch (error) {
+    console.error("Error fetching last login attempt:", error);
+    return null;
+  }
+}

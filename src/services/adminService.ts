@@ -433,7 +433,9 @@ export const getSystemLogs = async (logLimit: number = 50) => {
   }
 };
 
-export async function logEvent(action: string, timestamp: string, details: string, userEmail: string, success: boolean) {
+export async function logEvent(action: string, timestamp: string, 
+                              details: string, userEmail: string, 
+                              success: boolean) {
   const docRef = await addDoc(collection(db, 'logs'), {
       action,
       details,

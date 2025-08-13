@@ -62,6 +62,10 @@ export interface User {
   isVerified?: boolean; // For vets and admins
   permissions?: string[]; // For admins
   // AccountStats?: AccountStat[];
+  lastLoginAttempt?: {
+    timestamp: string;
+    success: boolean;
+  };
 }
 
 export interface Appointment {

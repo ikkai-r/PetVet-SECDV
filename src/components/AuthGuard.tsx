@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useState } from 'react';
-import { signIn, signUp, signInWithGoogle } from '@/services/auth';
+import { signIn, signUp, signInWithGoogle, getLastLoginAttempt } from '@/services/auth';
 import { setupSecurityQuestions, SECURITY_QUESTIONS } from '@/services/passwordManagement';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, User, Stethoscope, Shield, Eye, EyeOff, ArrowLeft, Plus, X } from 'lucide-react';
@@ -110,10 +110,20 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
         } else {
           // Regular sign in
           await signIn(email, password);
+
           toast({
             title: "Welcome back!",
             description: "You've been signed in successfully.",
           });
+
+          const lastLoginAttempt = await getLastLoginAttempt(email);
+          if (lastLoginAttempt) {
+            toast({
+              title: lastLoginAttempt.success ? "Last Login Successful" : "Last Login Failed",
+              description: `Date: ${lastLoginAttempt.timestamp}`,
+              variant: lastLoginAttempt.success ? "default" : "destructive"
+            });
+          }
         }
       } catch (error: any) {
         if (error.code === 'auth/account-locked') {
